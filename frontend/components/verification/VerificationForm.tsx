@@ -28,6 +28,7 @@ export function VerificationForm() {
   const [result, setResult] = useState<VerificationResult | null>(null)
   const [hashInput, setHashInput] = useState('')
   const [verificationMethod, setVerificationMethod] = useState<'file' | 'hash'>('file')
+  const cleanedHashInput = hashInput.trim().replace(/^0x/i, '')
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const uploadedFile = acceptedFiles[0]
@@ -78,7 +79,7 @@ export function VerificationForm() {
   }
 
   const handleVerifyByHash = async () => {
-    if (!hashInput || hashInput.length !== 64) {
+    if (!cleanedHashInput || cleanedHashInput.length !== 64) {
       toast.error('Hash harus terdiri dari 64 karakter hexadecimal')
       return
     }
@@ -87,7 +88,7 @@ export function VerificationForm() {
 
     try {
       const response = await axios.post(`${API_URL}/verify/hash`, {
-        hash: hashInput
+        hash: cleanedHashInput
       })
       setResult(response.data)
       
@@ -236,7 +237,7 @@ export function VerificationForm() {
 
               <button
                 onClick={handleVerifyByHash}
-                disabled={!hashInput || isVerifying || hashInput.length !== 64}
+                disabled={!cleanedHashInput || isVerifying || cleanedHashInput.length !== 64}
                 className="w-full mt-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isVerifying ? (

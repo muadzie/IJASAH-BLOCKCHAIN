@@ -16,7 +16,7 @@ class Ijazah extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'mahasiswa_id', 'nomor_ijazah', 'hash_sha256', 'qr_code_path',
+        'mahasiswa_id', 'nomor_ijazah', 'hash_sha256', 'pdf_hash', 'qr_code_path',
         'file_path', 'blockchain_tx_hash', 'blockchain_block',
         'blockchain_timestamp', 'status', 'issued_by', 'issued_at', 'notes'
     ];

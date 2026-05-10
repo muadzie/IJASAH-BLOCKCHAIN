@@ -7,8 +7,8 @@ use App\Models\Ijazah;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
-use Illuminate\Support\Facades\Hash;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Writer\SvgWriter;
 
 class CertificateService
 {
@@ -38,13 +38,12 @@ class CertificateService
     {
         $verificationUrl = env('APP_FRONTEND_URL') . "/verify/{$hash}";
         
-        $qrCode = QrCode::format('svg')
-            ->size(300)
-            ->errorCorrection('H')
-            ->generate($verificationUrl);
+        $qrCode = new QrCode($verificationUrl);
+        $writer = new SvgWriter();
+        $result = $writer->write($qrCode);
         
         $filename = "qr_codes/{$nomorIjazah}.svg";
-        Storage::disk('public')->put($filename, $qrCode);
+        Storage::disk('public')->put($filename, $result->getString());
         
         return $filename;
     }
@@ -52,8 +51,13 @@ class CertificateService
     public function generatePDFCertificate(Ijazah $ijazah): string
     {
         $mahasiswa = $ijazah->mahasiswa;
+
+        if (!$ijazah->qr_code_path || !Storage::disk('public')->exists($ijazah->qr_code_path)) {
+            $qrPath = $this->generateQRCode($ijazah->hash_sha256, $ijazah->nomor_ijazah);
+            $ijazah->update(['qr_code_path' => $qrPath]);
+        }
+
         $qrCodePath = storage_path('app/public/' . $ijazah->qr_code_path);
-        
         $qrCodeBase64 = 'data:image/svg+xml;base64,' . base64_encode(file_get_contents($qrCodePath));
         
         $data = [
@@ -70,7 +74,11 @@ class CertificateService
         $pdf->setPaper('a4', 'portrait');
         
         $filename = "ijazah/{$ijazah->nomor_ijazah}.pdf";
-        Storage::disk('public')->put($filename, $pdf->output());
+        $pdfContent = $pdf->output();
+        Storage::disk('public')->put($filename, $pdfContent);
+        
+        $pdfHash = hash('sha256', $pdfContent);
+        $ijazah->update(['pdf_hash' => $pdfHash]);
         
         return $filename;
     }

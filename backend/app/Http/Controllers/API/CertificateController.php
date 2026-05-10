@@ -22,6 +22,15 @@ class CertificateController extends Controller
         $this->blockchainService = $blockchainService;
     }
 
+    public function index(Request $request)
+    {
+        $ijazah = Ijazah::with('mahasiswa.prodi', 'issuer')
+            ->orderBy('created_at', 'desc')
+            ->paginate($request->per_page ?? 15);
+
+        return response()->json($ijazah);
+    }
+
     public function generate(Request $request)
     {
         $request->validate([
@@ -104,9 +113,14 @@ class CertificateController extends Controller
     public function download($id)
     {
         $ijazah = Ijazah::findOrFail($id);
-        
+
         if (!$ijazah->file_path || !Storage::disk('public')->exists($ijazah->file_path)) {
-            return response()->json(['error' => 'File not found'], 404);
+            if ($ijazah->status === 'issued') {
+                $pdfPath = $this->certificateService->generatePDFCertificate($ijazah);
+                $ijazah->update(['file_path' => $pdfPath]);
+            } else {
+                return response()->json(['error' => 'File not found. Publish certificate first.'], 404);
+            }
         }
         
         return Storage::disk('public')->download($ijazah->file_path, "Ijazah_{$ijazah->mahasiswa->nim}.pdf");
@@ -123,6 +137,35 @@ class CertificateController extends Controller
         }
         
         return response()->json($ijazah);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $ijazah = Ijazah::findOrFail($id);
+
+        $request->validate([
+            'nomor_ijazah' => 'sometimes|string|max:50|unique:ijazah,nomor_ijazah,' . $id,
+            'notes' => 'nullable|string',
+            'issued_at' => 'nullable|date',
+        ]);
+
+        if ($request->filled('nomor_ijazah')) {
+            $ijazah->update(['nomor_ijazah' => $request->nomor_ijazah]);
+        }
+
+        if ($request->has('notes')) {
+            $ijazah->update(['notes' => $request->notes]);
+        }
+
+        if ($request->filled('issued_at')) {
+            $ijazah->update(['issued_at' => $request->issued_at]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'certificate' => $ijazah->fresh()->load('mahasiswa.prodi', 'issuer'),
+            'message' => 'Certificate updated successfully'
+        ]);
     }
 
     public function revoke($id, Request $request)

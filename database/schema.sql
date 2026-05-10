@@ -1,9 +1,11 @@
--- Buat database
+-- Ijazah Blockchain - Universitas Subang
+-- Database Schema untuk MySQL 8.0+
+
 CREATE DATABASE IF NOT EXISTS ijazah_blockchain;
 USE ijazah_blockchain;
 
 -- Tabel fakultas
-CREATE TABLE fakultas (
+CREATE TABLE IF NOT EXISTS fakultas (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     kode VARCHAR(10) UNIQUE NOT NULL,
     nama VARCHAR(255) NOT NULL,
@@ -12,7 +14,7 @@ CREATE TABLE fakultas (
 );
 
 -- Tabel prodi
-CREATE TABLE prodi (
+CREATE TABLE IF NOT EXISTS prodi (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     fakultas_id CHAR(36) NOT NULL,
     kode VARCHAR(10) UNIQUE NOT NULL,
@@ -23,30 +25,8 @@ CREATE TABLE prodi (
     FOREIGN KEY (fakultas_id) REFERENCES fakultas(id) ON DELETE CASCADE
 );
 
--- Tabel mahasiswa
-CREATE TABLE mahasiswa (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    nim VARCHAR(20) UNIQUE NOT NULL,
-    nama_lengkap VARCHAR(255) NOT NULL,
-    tempat_lahir VARCHAR(100),
-    tanggal_lahir DATE,
-    jenis_kelamin ENUM('L', 'P'),
-    prodi_id CHAR(36) NOT NULL,
-    tahun_masuk VARCHAR(4),
-    tahun_lulus VARCHAR(4),
-    ipk DECIMAL(3,2) CHECK (ipk >= 0 AND ipk <= 4),
-    judul_skripsi TEXT,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    no_hp VARCHAR(20),
-    foto TEXT,
-    status ENUM('aktif', 'lulus', 'dropout') DEFAULT 'aktif',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (prodi_id) REFERENCES prodi(id)
-);
-
 -- Tabel users
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -60,16 +40,37 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Hubungkan mahasiswa dengan user
-ALTER TABLE mahasiswa ADD COLUMN user_id CHAR(36) NULL;
-ALTER TABLE mahasiswa ADD FOREIGN KEY (user_id) REFERENCES users(id);
+-- Tabel mahasiswa
+CREATE TABLE IF NOT EXISTS mahasiswa (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    nim VARCHAR(20) UNIQUE NOT NULL,
+    nama_lengkap VARCHAR(255) NOT NULL,
+    tempat_lahir VARCHAR(100),
+    tanggal_lahir DATE,
+    jenis_kelamin ENUM('L', 'P'),
+    prodi_id CHAR(36) NOT NULL,
+    tahun_masuk VARCHAR(4),
+    tahun_lulus VARCHAR(4),
+    ipk DECIMAL(4,2) DEFAULT NULL,
+    judul_skripsi TEXT,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    no_hp VARCHAR(20),
+    foto TEXT,
+    status ENUM('aktif', 'lulus', 'dropout') DEFAULT 'aktif',
+    user_id CHAR(36) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (prodi_id) REFERENCES prodi(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
 
 -- Tabel ijazah
-CREATE TABLE ijazah (
+CREATE TABLE IF NOT EXISTS ijazah (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     mahasiswa_id CHAR(36) NOT NULL,
     nomor_ijazah VARCHAR(50) UNIQUE NOT NULL,
     hash_sha256 VARCHAR(64) UNIQUE NOT NULL,
+    pdf_hash VARCHAR(64) NULL,
     qr_code_path VARCHAR(255),
     file_path VARCHAR(255),
     blockchain_tx_hash VARCHAR(66),
@@ -86,7 +87,7 @@ CREATE TABLE ijazah (
 );
 
 -- Tabel blockchain_transactions
-CREATE TABLE blockchain_transactions (
+CREATE TABLE IF NOT EXISTS blockchain_transactions (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     ijazah_id CHAR(36),
     tx_hash VARCHAR(66) NOT NULL,
@@ -104,7 +105,7 @@ CREATE TABLE blockchain_transactions (
 );
 
 -- Tabel verification_logs
-CREATE TABLE verification_logs (
+CREATE TABLE IF NOT EXISTS verification_logs (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     ijazah_id CHAR(36),
     certificate_hash VARCHAR(64),
@@ -118,7 +119,7 @@ CREATE TABLE verification_logs (
 );
 
 -- Tabel activity_logs
-CREATE TABLE activity_logs (
+CREATE TABLE IF NOT EXISTS activity_logs (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     user_id CHAR(36),
     action VARCHAR(100),
@@ -131,7 +132,7 @@ CREATE TABLE activity_logs (
 );
 
 -- Tabel personal_access_tokens (Laravel Sanctum)
-CREATE TABLE personal_access_tokens (
+CREATE TABLE IF NOT EXISTS personal_access_tokens (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     tokenable_type VARCHAR(255) NOT NULL,
     tokenable_id CHAR(36) NOT NULL,
@@ -145,20 +146,20 @@ CREATE TABLE personal_access_tokens (
     INDEX idx_tokenable (tokenable_type, tokenable_id)
 );
 
--- Tabel cache dan jobs
-CREATE TABLE cache (
-    key VARCHAR(255) PRIMARY KEY,
+-- Tabel cache (gunakan backtick karena `key` reserved word)
+CREATE TABLE IF NOT EXISTS `cache` (
+    `key` VARCHAR(255) PRIMARY KEY,
     value MEDIUMTEXT NOT NULL,
     expiration INT NOT NULL
 );
 
-CREATE TABLE cache_locks (
-    key VARCHAR(255) PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS cache_locks (
+    `key` VARCHAR(255) PRIMARY KEY,
     owner VARCHAR(255) NOT NULL,
     expiration INT NOT NULL
 );
 
-CREATE TABLE jobs (
+CREATE TABLE IF NOT EXISTS jobs (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     queue VARCHAR(255) NOT NULL,
     payload LONGTEXT NOT NULL,
@@ -169,7 +170,7 @@ CREATE TABLE jobs (
     INDEX idx_queue (queue)
 );
 
-CREATE TABLE job_batches (
+CREATE TABLE IF NOT EXISTS job_batches (
     id VARCHAR(255) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     total_jobs INT NOT NULL,
@@ -182,7 +183,7 @@ CREATE TABLE job_batches (
     finished_at INT UNSIGNED NULL
 );
 
-CREATE TABLE failed_jobs (
+CREATE TABLE IF NOT EXISTS failed_jobs (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     uuid VARCHAR(255) UNIQUE NOT NULL,
     connection TEXT NOT NULL,
@@ -193,7 +194,7 @@ CREATE TABLE failed_jobs (
 );
 
 -- Tabel permission (Spatie)
-CREATE TABLE permissions (
+CREATE TABLE IF NOT EXISTS permissions (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
     guard_name VARCHAR(255) NOT NULL,
@@ -202,7 +203,7 @@ CREATE TABLE permissions (
     UNIQUE INDEX idx_name_guard (name, guard_name)
 );
 
-CREATE TABLE roles (
+CREATE TABLE IF NOT EXISTS roles (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
     guard_name VARCHAR(255) NOT NULL,
@@ -211,7 +212,7 @@ CREATE TABLE roles (
     UNIQUE INDEX idx_name_guard (name, guard_name)
 );
 
-CREATE TABLE model_has_roles (
+CREATE TABLE IF NOT EXISTS model_has_roles (
     role_id BIGINT NOT NULL,
     model_type VARCHAR(255) NOT NULL,
     model_id CHAR(36) NOT NULL,
@@ -220,7 +221,7 @@ CREATE TABLE model_has_roles (
     INDEX idx_model (model_type, model_id)
 );
 
-CREATE TABLE model_has_permissions (
+CREATE TABLE IF NOT EXISTS model_has_permissions (
     permission_id BIGINT NOT NULL,
     model_type VARCHAR(255) NOT NULL,
     model_id CHAR(36) NOT NULL,
@@ -229,7 +230,7 @@ CREATE TABLE model_has_permissions (
     INDEX idx_model (model_type, model_id)
 );
 
-CREATE TABLE role_has_permissions (
+CREATE TABLE IF NOT EXISTS role_has_permissions (
     permission_id BIGINT NOT NULL,
     role_id BIGINT NOT NULL,
     PRIMARY KEY (permission_id, role_id),
@@ -248,29 +249,31 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_role ON users(role);
 
 -- Insert data awal
-INSERT INTO fakultas (id, kode, nama) VALUES 
+INSERT INTO fakultas (id, kode, nama) VALUES
 (UUID(), 'FIK', 'Fakultas Ilmu Komputer'),
 (UUID(), 'FE', 'Fakultas Ekonomi'),
 (UUID(), 'FH', 'Fakultas Hukum');
 
-INSERT INTO prodi (id, fakultas_id, kode, nama, jenjang) VALUES 
-(UUID(), (SELECT id FROM fakultas WHERE kode='FIK'), 'TI', 'Teknik Informatika', 'S1'),
-(UUID(), (SELECT id FROM fakultas WHERE kode='FIK'), 'SI', 'Sistem Informasi', 'S1'),
-(UUID(), (SELECT id FROM fakultas WHERE kode='FE'), 'MAN', 'Manajemen', 'S1');
+INSERT INTO prodi (id, fakultas_id, kode, nama, jenjang)
+SELECT UUID(), f.id, 'TI', 'Teknik Informatika', 'S1' FROM fakultas f WHERE f.kode = 'FIK'
+UNION ALL
+SELECT UUID(), f.id, 'SI', 'Sistem Informasi', 'S1' FROM fakultas f WHERE f.kode = 'FIK'
+UNION ALL
+SELECT UUID(), f.id, 'MAN', 'Manajemen', 'S1' FROM fakultas f WHERE f.kode = 'FE';
 
--- Insert user super admin default (password: admin123)
-INSERT INTO users (id, name, email, password, role) VALUES 
+-- Insert user super admin (password: admin123)
+INSERT INTO users (id, name, email, password, role) VALUES
 (UUID(), 'Super Admin', 'admin@unsub.ac.id', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'super_admin');
 
--- Insert roles
-INSERT INTO roles (name, guard_name) VALUES 
+-- Insert roles (Spatie)
+INSERT INTO roles (name, guard_name) VALUES
 ('super_admin', 'web'),
 ('admin_akademik', 'web'),
 ('mahasiswa', 'web'),
 ('verifikator', 'web');
 
 -- Assign super admin role
-INSERT INTO model_has_roles (role_id, model_type, model_id) 
-SELECT r.id, 'App\\Models\\User', u.id 
-FROM roles r, users u 
+INSERT INTO model_has_roles (role_id, model_type, model_id)
+SELECT r.id, 'App\\Models\\User', u.id
+FROM roles r, users u
 WHERE r.name = 'super_admin' AND u.email = 'admin@unsub.ac.id';
