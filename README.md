@@ -63,7 +63,7 @@ Optimal digunakan di desktop maupun mobile.
 
 | Technology | Description |
 |---|---|
-| Laravel 12 | Backend Framework |
+| Laravel 13 | Backend Framework |
 | React JS | Frontend Framework |
 | MySQL | Database |
 | Blockchain | Data Verification |
