@@ -1,84 +1,89 @@
-<div align="center">
+# IJAZAH DIGITAL BERBASIS BLOCKCHAIN
 
-# 🎓 IJAZAH-BLOCKCHAIN by ILHAM MU'ADZ FAKHRIZI
-### Sistem Verifikasi Ijazah Digital Berbasis Blockchain
+## 📌 Tentang Proyek
 
-<img src="https://readme-typing-svg.demolab.com?font=Poppins&size=24&pause=1000&color=00C2FF&center=true&vCenter=true&width=700&lines=Secure+Digital+Certificate+Verification;Blockchain-Based+Academic+Validation;Modern+Laravel+%2B+React+Application;Fast+%7C+Transparent+%7C+Trusted" alt="Typing SVG" />
+Sistem Ijazah Digital Berbasis Blockchain untuk **Universitas Subang (UNSUB)**. Sebuah solusi inovatif untuk mendigitalisasi proses penerbitan ijazah, mengamankan data keabsahan ijazah menggunakan teknologi blockchain (Ethereum), dan menyediakan mekanisme verifikasi publik yang cepat, transparan, serta anti-pemalsuan.
 
-<br>
+## 🎯 Tujuan Utama
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Laravel-12-red?style=for-the-badge&logo=laravel">
-  <img src="https://img.shields.io/badge/React-Frontend-61DAFB?style=for-the-badge&logo=react">
-  <img src="https://img.shields.io/badge/Ethereum-Secure-blueviolet?style=for-the-badge&logo=ethereum">
-  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge">
-</p>
+- Mendigitalisasi proses penerbitan ijazah, dari draft hingga terbit.
+- Mengamankan integritas data ijazah dengan menyimpan hash-nya di blockchain.
+- Menyediakan layanan verifikasi ijazah secara publik dan instan.
+- Mencegah potensi pemalsuan ijazah.
+- Menyediakan audit trail yang lengkap untuk setiap aktivitas.
 
-</div>
+## ✨ Fitur Utama
 
----
+### Untuk Admin & Petugas Akademik
+- **Autentikasi Pengguna:** Login, logout, dan manajemen password dengan token-based authentication (Laravel Sanctum).
+- **Manajemen Mahasiswa:** CRUD data mahasiswa, import data massal (Excel/CSV), filter, dan pencarian.
+- **Manajemen Ijazah:**
+    - Generate ijazah (draft) dengan nomor unik, hash SHA-256, dan QR Code.
+    - Publish ijazah ke blockchain Ethereum (dukungan Mock Mode untuk development).
+    - Generate PDF ijazah resmi dengan QR Code dan link verifikasi.
+    - Revoke ijazah jika diperlukan.
+- **Dashboard & Statistik:** Visualisasi data real-time (total alumni, ijazah terbit, jumlah verifikasi) menggunakan Recharts.
+- **Audit Trail:** Merekam semua aktivitas pengguna dan verifikasi (IP, user agent, timestamp, hasil).
 
-# 🚀 Tentang Project
+### Untuk Pengguna Publik
+- **Verifikasi Ijazah (Tanpa Login):**
+    - **Via Hash:** Masukkan kode hash SHA-256 ijazah.
+    - **Via Upload File:** Upload file PDF ijazah untuk diverifikasi.
+    - **Via QR Code:** Scan QR Code pada ijazah yang akan langsung mengarahkan ke halaman verifikasi.
+- **Hasil Verifikasi:** Menampilkan status keabsahan ijazah (VALID/INVALID/REVOKED) dan detail mahasiswa jika valid.
 
-**IJAZAH-BLOCKCHAIN** adalah platform modern untuk verifikasi ijazah digital menggunakan teknologi **Blockchain** guna memastikan keamanan, keaslian, dan transparansi data akademik.
+## 🛠️ Teknologi yang Digunakan
 
-Sistem ini memungkinkan institusi pendidikan untuk menerbitkan ijazah digital yang tidak dapat dimanipulasi serta memudahkan proses validasi secara online dan realtime.
+### Frontend (Client-Side)
+| Teknologi | Versi | Fungsi |
+| :--- | :--- | :--- |
+| Next.js (App Router) | 16.2.6 | React framework untuk frontend full-stack. |
+| React | 19.2.4 | Library untuk membangun antarmuka pengguna. |
+| TypeScript | 5.x | Menambahkan type safety pada kode JavaScript. |
+| Tailwind CSS | 4.x | Framework CSS untuk styling utility-first. |
+| TanStack React Query | 5.100.9 | Manajemen state server-side dan data fetching. |
+| Axios | 1.16.0 | HTTP client untuk komunikasi dengan API backend. |
+| React Hook Form & Zod | 7.75.0 & 4.4.3 | Penanganan dan validasi form. |
+| Recharts | 3.8.1 | Library untuk chart dan diagram pada dashboard. |
 
----
+### Backend (Server-Side)
+| Teknologi | Versi | Fungsi |
+| :--- | :--- | :--- |
+| PHP | ^8.3 | Bahasa pemrograman backend. |
+| Laravel | 13.x | Framework PHP untuk membangun API dan logika bisnis. |
+| Laravel Sanctum | 4.3 | Manajemen autentikasi API (token-based). |
+| Spatie Permission | 7.4 | Manajemen Role-Based Access Control (RBAC). |
+| Laravel DomPDF | 3.1 | Generate file PDF ijazah. |
+| Endroid QR Code | 6.1 | Generate QR Code untuk link verifikasi. |
+| web3p/web3.php | 0.1.6 | Library PHP untuk berinteraksi dengan node Ethereum via JSON-RPC. |
 
-# ✨ Fitur Unggulan
+### Database & Blockchain
+| Teknologi | Fungsi |
+| :--- | :--- |
+| MySQL 8.0+ | Database relasional untuk menyimpan data master dan transaksional. |
+| **Blockchain (Ethereum)** | Menyimpan hash ijazah secara immutable. |
+| - Sepolia Testnet | Jaringan development. |
+| - Mainnet | Jaringan production. |
 
-## 🔐 Keamanan Blockchain
-Data ijazah tersimpan dengan sistem blockchain yang aman dan terenkripsi.
+### Infrastruktur & Tools
+- **Dependency Manager:** Composer (PHP), NPM/Yarn (Node.js)
+- **Version Control:** Git
+- **Local Environment:** Laragon (Windows) / Docker
 
-## 📄 Verifikasi QR Code
-Ijazah dapat diverifikasi secara instan menggunakan QR Code.
+## 🗺️ Arsitektur Sistem
 
-## ⚡ Realtime Validation
-Validasi data dilakukan secara cepat dan akurat.
+Sistem dibangun dengan arsitektur berlapis (Layered Architecture) yang memisahkan tanggung jawab setiap komponen.
 
-## 👨‍🎓 Manajemen Mahasiswa
-Mengelola data mahasiswa dan ijazah digital dengan mudah.
+1.  **Presentation Layer (Frontend - Next.js):** Menangani tampilan UI, routing, dan interaksi pengguna.
+2.  **Application Layer (Backend - Laravel Controllers):** Menerima request, validasi, autentikasi, dan otorisasi.
+3.  **Service Layer (Laravel Services):** Tempat semua logika bisnis, seperti interaksi blockchain dan generate PDF.
+4.  **Persistence Layer (Eloquent ORM + MySQL):** Mengelola penyimpanan dan pengambilan data dari database.
 
-## 🏫 Dashboard Admin Modern
-Tampilan dashboard premium dengan UI modern dan responsif.
-
-## 🌐 API Integration
-Mendukung integrasi API untuk sistem akademik lainnya.
-
-## 📱 Responsive Design
-Optimal digunakan di desktop maupun mobile.
-
----
-
-# 🖼️ Preview Project
-
-<p align="center">
-  <img src="https://user-images.githubusercontent.com/74038190/212284068-9b1deb4b-5c95-46ef-b014-160847d3e7f7.gif" width="800">
-</p>
-
----
-
-# 🛠️ Tech Stack
-
-| Technology | Description |
-|---|---|
-| Laravel 13 | Backend Framework |
-| React JS | Frontend Framework |
-| MySQL | Database |
-| Blockchain | Data Verification |
-| Tailwind CSS | Modern UI Styling |
-| REST API | System Integration |
-
----
-
-# 📂 Struktur Project
-
-```bash
-ijazah-blockchain/
-│
-├── backend/        # Laravel Backend
-├── frontend/       # React Frontend
-├── database/       # Database Migration
-├── public/         # Public Assets
-└── README.md
+```text
+[Browser / Pengguna] <--> [Next.js Frontend] <--(REST API)--> [Laravel Backend] <--> [MySQL Database]
+                                                                   |
+                                                                   v
+                                                            [Blockchain Service]
+                                                                   |
+                                                                   v
+                                                         [Ethereum Network]
