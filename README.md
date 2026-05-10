@@ -10,7 +10,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Laravel-12-red?style=for-the-badge&logo=laravel">
   <img src="https://img.shields.io/badge/React-Frontend-61DAFB?style=for-the-badge&logo=react">
-  <img src="https://img.shields.io/badge/Blockchain-Secure-blueviolet?style=for-the-badge&logo=bitcoin">
+  <img src="https://img.shields.io/badge/Ethereum-Secure-blueviolet?style=for-the-badge&logo=ethereum">
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge">
 </p>
 
