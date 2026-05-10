@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎓 IJAZAH-BLOCKCHAIN
+# 🎓 IJAZAH-BLOCKCHAIN by ILHAM MU'ADZ FAKHRIZI
 ### Sistem Verifikasi Ijazah Digital Berbasis Blockchain
 
 <img src="https://readme-typing-svg.demolab.com?font=Poppins&size=24&pause=1000&color=00C2FF&center=true&vCenter=true&width=700&lines=Secure+Digital+Certificate+Verification;Blockchain-Based+Academic+Validation;Modern+Laravel+%2B+React+Application;Fast+%7C+Transparent+%7C+Trusted" alt="Typing SVG" />
