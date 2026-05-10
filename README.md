@@ -267,15 +267,15 @@ BLOCKCHAIN_MOCK_MODE=false
 ### Ilham Muadz Fakhrizi
 
 Pengembang Sistem Ijazah Digital Berbasis Blockchain  
-Universitas Subang (UNSUB)
 
-📧 Email: ilham@unsub.ac.id
+
+📧 Email: ilhammuadz133@gmail.com
 
 ---
 
 # 📄 Lisensi
 
-Hak Cipta © 2026 Universitas Subang (UNSUB)
+Hak Cipta © 2026 Ilham Mu'adz Fakhrizi
 
 Seluruh hak cipta dilindungi undang-undang.  
 Dilarang menyalin, mendistribusikan, atau memodifikasi sebagian maupun seluruh kode sumber aplikasi tanpa izin tertulis dari pengembang.
