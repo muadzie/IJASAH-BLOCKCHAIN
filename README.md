@@ -1,107 +1,293 @@
-# IJAZAH DIGITAL BERBASIS BLOCKCHAIN
-## Universitas Subang (UNSUB)
+# 🎓 IJAZAH DIGITAL BERBASIS BLOCKCHAIN
+## Sistem Verifikasi Ijazah Digital — Universitas Subang (UNSUB)
 
-**Pengembang:** Ilham Muadz Fakhrizi  
-**Tahun:** 2026
+<p align="center">
+  <img src="https://img.shields.io/badge/Blockchain-Ethereum-3C3CFF?style=for-the-badge&logo=ethereum&logoColor=white">
+  <img src="https://img.shields.io/badge/Framework-Laravel-red?style=for-the-badge&logo=laravel&logoColor=white">
+  <img src="https://img.shields.io/badge/Frontend-Next.js-black?style=for-the-badge&logo=next.js&logoColor=white">
+  <img src="https://img.shields.io/badge/Database-MySQL-blue?style=for-the-badge&logo=mysql&logoColor=white">
+</p>
 
----
-
-## Tentang Proyek
-
-Sistem Ijazah Digital Berbasis Blockchain untuk Universitas Subang (UNSUB) adalah solusi digitalisasi penerbitan ijazah yang terintegrasi dengan teknologi blockchain Ethereum. Sistem ini memungkinkan penerbitan ijazah yang aman, verifikasi publik yang cepat, dan pencegahan pemalsuan ijazah.
-
-**Fitur Utama:**
-- Manajemen mahasiswa dan ijazah
-- Penerbitan ijazah ke blockchain Ethereum
-- Verifikasi ijazah publik (via hash, upload PDF, atau QR Code)
-- Dashboard statistik real-time
-- Role-Based Access Control (Super Admin, Admin Akademik, Verifikator, Mahasiswa)
-- Audit trail lengkap
+<p align="center">
+  Sistem modern untuk penerbitan, penyimpanan, dan verifikasi ijazah digital berbasis teknologi blockchain Ethereum.
+</p>
 
 ---
 
-## Teknologi
+# 📌 Tentang Proyek
 
-**Frontend:**
-- Next.js 16 (App Router)
-- React 19 & TypeScript
+**Ijazah Digital Berbasis Blockchain** merupakan sistem digitalisasi ijazah yang dikembangkan untuk mendukung proses penerbitan dan verifikasi ijazah secara aman, transparan, dan terintegrasi dengan teknologi blockchain.
+
+Sistem ini dirancang untuk membantu institusi pendidikan dalam:
+
+- Mengurangi risiko pemalsuan ijazah
+- Mempermudah proses verifikasi dokumen akademik
+- Menyediakan validasi data secara publik dan real-time
+- Meningkatkan keamanan dan integritas data akademik
+
+Implementasi blockchain memungkinkan setiap ijazah memiliki identitas digital unik yang tersimpan secara permanen dan dapat diverifikasi kapan saja.
+
+---
+
+# ✨ Fitur Utama
+
+## 📄 Manajemen Ijazah Digital
+- Pengelolaan data mahasiswa dan ijazah
+- Generate hash dokumen otomatis
+- Export PDF ijazah
+- Generate QR Code verifikasi
+
+## ⛓️ Integrasi Blockchain Ethereum
+- Penyimpanan hash ijazah ke blockchain
+- Dukungan Sepolia Testnet & Mainnet
+- Validasi transaksi blockchain
+
+## 🔍 Verifikasi Publik
+Sistem menyediakan beberapa metode verifikasi:
+- Verifikasi melalui hash
+- Upload file PDF ijazah
+- Scan QR Code
+- Validasi data blockchain
+
+## 👥 Role-Based Access Control (RBAC)
+Hak akses pengguna dibagi menjadi:
+- Super Admin
+- Admin Akademik
+- Verifikator
+- Mahasiswa
+
+## 📊 Dashboard Monitoring
+- Statistik penerbitan ijazah
+- Monitoring aktivitas sistem
+- Audit trail pengguna
+- Riwayat transaksi blockchain
+
+---
+
+# 🛠️ Teknologi yang Digunakan
+
+## Frontend
+- Next.js 16
+- React 19
+- TypeScript
 - Tailwind CSS
-- React Query & Axios
+- Axios
+- React Query
 
-**Backend:**
-- PHP 8.3 & Laravel 13
-- Laravel Sanctum (autentikasi)
-- Spatie Permission (RBAC)
-- DomPDF & QR Code Generator
+## Backend
+- Laravel 13
+- PHP 8.3
+- Laravel Sanctum
+- Spatie Permission
+- DomPDF
+- QR Code Generator
 
-**Database:**
+## Database
 - MySQL 8.0
 
-**Blockchain:**
-- Ethereum (Sepolia Testnet / Mainnet)
+## Blockchain
+- Ethereum
+- Sepolia Testnet
 - web3p/web3.php
 
 ---
 
-## Instalasi
+# 📂 Struktur Project
 
-### Prasyarat
+```bash
+unsub-blockchain-ijazah/
+│
+├── backend/
+│   ├── app/
+│   ├── routes/
+│   ├── database/
+│   └── storage/
+│
+├── frontend/
+│   ├── app/
+│   ├── components/
+│   ├── public/
+│   └── services/
+│
+└── README.md
+```
 
-- Node.js (20.x LTS)
-- PHP (8.3+)
+---
+
+# ⚙️ Instalasi Project
+
+## 📋 Prasyarat
+
+Pastikan software berikut sudah terinstall:
+
+- Node.js 20+
+- PHP 8.3+
 - Composer
-- MySQL (8.0+)
+- MySQL 8+
 - Git
 
-### Langkah Instalasi
+---
 
-**1. Clone Repository**
+# 🚀 Clone Repository
 
-git clone https://github.com/ilhamfakhrizi/unsub-blockchain-ijazah.git
+```bash
+git clone https://github.com/username/unsub-blockchain-ijazah.git
 cd unsub-blockchain-ijazah
+```
 
-**setup backend**
+---
 
+# 🔧 Setup Backend
+
+Masuk ke folder backend:
+
+```bash
 cd backend
+```
+
+Copy file environment:
+
+```bash
 cp .env.example .env
+```
+
+Install dependency Laravel:
+
+```bash
 composer install
+```
+
+Generate application key:
+
+```bash
 php artisan key:generate
+```
 
-**setup .env**
+---
 
+# 🗄️ Konfigurasi Database
+
+Edit file `.env`
+
+```env
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=ijazah_blockchain
 DB_USERNAME=root
 DB_PASSWORD=
+```
 
-**jalankan migrasi**
+---
 
+# 📦 Migrasi Database
+
+```bash
 php artisan migrate --seed
+```
+
+Buat symbolic link storage:
+
+```bash
 php artisan storage:link
+```
+
+Jalankan backend server:
+
+```bash
 php artisan serve
+```
 
-**setup frontend**
+---
 
+# 💻 Setup Frontend
+
+Masuk ke folder frontend:
+
+```bash
 cd frontend
+```
+
+Copy environment file:
+
+```bash
 cp .env.example .env.local
+```
+
+Install dependency frontend:
+
+```bash
 npm install
+```
 
-**Konfigurasi Blockchain (Opsional)**
+Jalankan frontend:
 
-Untuk mode development, sistem menggunakan Mock Mode secara default. Untuk koneksi ke jaringan nyata, sesuaikan konfigurasi blockchain di file .env backend:
-BLOCKCHAIN_RPC_URL=https://sepolia.infura.io/v3/your-api-key
-BLOCKCHAIN_CONTRACT_ADDRESS=0x...
+```bash
+npm run dev
+```
+
+---
+
+# ⛓️ Konfigurasi Blockchain (Opsional)
+
+Untuk mode development, sistem menggunakan **Mock Mode** secara default.
+
+Jika ingin menggunakan jaringan Ethereum asli, edit konfigurasi berikut pada file `.env` backend:
+
+```env
+BLOCKCHAIN_RPC_URL=https://sepolia.infura.io/v3/YOUR_API_KEY
+BLOCKCHAIN_CONTRACT_ADDRESS=0xXXXXXXXXXXXX
 BLOCKCHAIN_MOCK_MODE=false
+```
 
-**Kontribusi**
-Proyek ini dikembangkan untuk kebutuhan internal Universitas Subang. Untuk saran, masukan, atau pelaporan bug, silakan menghubungi:
+---
 
-Ilham Muadz Fakhrizi
-Email: ilham@unsub.ac.id
+# 🔐 Keamanan Sistem
 
-Lisensi & Hak Cipta
-Hak Cipta © 2026 Universitas Subang (UNSUB). Seluruh hak cipta dilindungi undang-undang.
+- Hash ijazah terenkripsi
+- Validasi berbasis blockchain
+- Role-based access control
+- Audit log aktivitas pengguna
+- Proteksi autentikasi menggunakan Laravel Sanctum
 
-Dilarang menyalin, mendistribusikan, atau memodifikasi sebagian atau seluruh kode sumber aplikasi ini tanpa izin tertulis dari pengembang.
+---
+
+# 📸 Preview Sistem
+
+> Tambahkan screenshot sistem di sini
+
+```md
+![Dashboard](public/images/dashboard.png)
+```
+
+---
+
+# 👨‍💻 Developer
+
+### Ilham Muadz Fakhrizi
+
+Pengembang Sistem Ijazah Digital Berbasis Blockchain  
+Universitas Subang (UNSUB)
+
+📧 Email: ilham@unsub.ac.id
+
+---
+
+# 📄 Lisensi
+
+Hak Cipta © 2026 Universitas Subang (UNSUB)
+
+Seluruh hak cipta dilindungi undang-undang.  
+Dilarang menyalin, mendistribusikan, atau memodifikasi sebagian maupun seluruh kode sumber aplikasi tanpa izin tertulis dari pengembang.
+
+---
+
+# ⭐ Dukungan
+
+Jika proyek ini membantu, silakan berikan:
+
+🌟 Star Repository  
+🍴 Fork Project  
+🛠️ Contribution & Feedback
+
+---
