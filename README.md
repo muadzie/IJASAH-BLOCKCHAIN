@@ -1,5 +1,5 @@
 # 🎓 IJAZAH DIGITAL BERBASIS BLOCKCHAIN
-## Sistem Verifikasi Ijazah Digital — Universitas Subang (UNSUB)
+## Sistem Verifikasi Ijazah Digital
 
 <p align="center">
   <img src="https://img.shields.io/badge/Blockchain-Ethereum-3C3CFF?style=for-the-badge&logo=ethereum&logoColor=white">
