@@ -41,11 +41,7 @@ export default function LoginPage() {
 
       toast.success(`Selamat datang, ${user.name}!`)
 
-      if (user.role === 'super_admin' || user.role === 'admin_akademik') {
-        router.push('/dashboard')
-      } else {
-        router.push('/dashboard')
-      }
+      router.push('/dashboard')
     } catch (error: any) {
       const message = error.response?.data?.errors?.email?.[0] || error.response?.data?.error || 'Email atau password salah'
       toast.error(message)

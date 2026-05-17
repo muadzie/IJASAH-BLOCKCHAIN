@@ -1,0 +1,1329 @@
+================================================================================
+                    DOKUMENTASI SISTEM
+          IJAZAH DIGITAL BERBASIS BLOCKCHAIN
+          UNIVERSITAS SUBANG (UNSUB)
+================================================================================
+
+========================================================================
+DAFTAR ISI
+========================================================================
+1.  ALUR SISTEM
+2.  TEKNOLOGI YANG DIGUNAKAN
+3.  SPESIFIKASI KEBUTUHAN SISTEM (SRS)
+4.  PEMODELAN SISTEM (UML)
+5.  USE CASE DIAGRAM & SKENARIO
+6.  ACTIVITY DIAGRAM
+7.  ROBUSTNESS DIAGRAM
+8.  CLASS DIAGRAM
+9.  SEQUENCE DIAGRAM
+10. STRUKTUR SISTEM
+11. PERANCANGAN ARSITEKTUR SISTEM
+12. DIAGRAM ARSITEKTUR
+13. KOMPONEN SISTEM
+
+
+========================================================================
+1. ALUR SISTEM
+========================================================================
+
+----------------------------------------------------------------------
+1.1. Alur Registrasi Mahasiswa
+----------------------------------------------------------------------
+   Mulai
+     |
+     v
+   [Super Admin / Admin Akademik]
+     |
+     +---> Input Data Mahasiswa (manual)
+     |       - NIM
+     |       - Nama Lengkap
+     |       - Tempat, Tanggal Lahir
+     |       - Jenis Kelamin
+     |       - Program Studi (Prodi)
+     |       - Tahun Masuk
+     |       - Email, No HP
+     |       - Status (aktif/lulus/dropout)
+     |
+     +---> Import Data Massal (file Excel/CSV)
+     |
+     v
+   Data tersimpan di database MySQL
+     |
+     v
+   Akun login dibuat untuk mahasiswa (opsional)
+     |
+     v
+   [Selesai]
+
+
+----------------------------------------------------------------------
+1.2. Alur Penerbitan Ijazah
+----------------------------------------------------------------------
+   Mulai
+     |
+     v
+   [Admin Akademik] pilih menu "Sertifikat"
+     |
+     v
+   Pilih mahasiswa yang sudah lulus (status = 'lulus')
+     |
+     v
+   Sistem generate:
+     - Nomor Ijazah: UNSUB/{kode_prodi}/{tahun}/{random_6_char}
+     - SHA-256 Hash: hash('sha256', {nim + nama + prodi + ipk + nomor_ijazah + tanggal_lulus + timestamp})
+     - QR Code: SVG yang berisi URL verifikasi (frontend/verify/{hash})
+     |
+     v
+   Status ijazah: "draft"
+     |
+     v
+   [Selesai]
+
+
+----------------------------------------------------------------------
+1.3. Alur Publikasi ke Blockchain
+----------------------------------------------------------------------
+   Mulai
+     |
+     v
+   [Admin Akademik] pilih ijazah status "draft"
+     |
+     v
+   Klik tombol "Publish to Blockchain"
+     |
+     v
+   Backend memanggil BlockchainService::issueCertificate()
+     |
+     +---> [Jika Mock Mode = true]
+     |       Generate transaction hash palsu (0x + 32 byte random hex)
+     |       Simpan ke tabel blockchain_transactions (status = 'confirmed')
+     |
+     +---> [Jika Mock Mode = false / Production]
+     |       Kirim transaksi ke smart contract Ethereum via JSON-RPC
+     |       Tunggu konfirmasi dari jaringan
+     |
+     v
+   Update data ijazah:
+     - blockchain_tx_hash = transaction hash
+     - blockchain_block = nomor block
+     - blockchain_timestamp = waktu konfirmasi
+     - status = 'issued'
+     - issued_at = now()
+     |
+     v
+   Generate PDF Ijazah (DomPDF):
+     - Template ijazah resmi
+     - Data mahasiswa lengkap
+     - QR Code (base64 embedded)
+     - Link verifikasi
+     - Link Etherscan区块链
+     |
+     v
+   PDF disimpan di storage
+   Hash PDF dihitung dan disimpan (pdf_hash)
+     |
+     v
+   [Selesai]
+
+
+----------------------------------------------------------------------
+1.4. Alur Verifikasi Ijazah (Publik)
+----------------------------------------------------------------------
+   Mulai
+     |
+     v
+   [Visitor / Publik] membuka halaman verifikasi
+     |
+     +---> Metode 1: Verifikasi via Hash
+     |       Masukkan SHA-256 hash (64 karakter hex)
+     |           |
+     |           v
+     |       POST /api/verify/hash
+     |           |
+     |           v
+     |       Cari di tabel ijazah berdasarkan hash_sha256
+     |       Verifikasi ke blockchain via BlockchainService::verifyCertificate()
+     |           |
+     |           v
+     |       Log verifikasi dicatat (IP, user agent, timestamp, hasil)
+     |           |
+     |           v
+     |       Tampilkan hasil: VALID / INVALID
+     |           - Jika valid: nama, NIM, prodi, IPK, fakultas, dll
+     |           - Jika revoked: status dicabut
+     |
+     +---> Metode 2: Verifikasi via Upload File PDF
+     |       Upload file PDF (max 5MB)
+     |           |
+     |           v
+     |       Sistem hitung SHA-256 hash dari file PDF
+     |       Cari di tabel ijazah berdasarkan pdf_hash
+     |       Verifikasi ke blockchain via BlockchainService::verifyCertificate()
+     |           |
+     |           v
+     |       Tampilkan hasil (sama seperti metode hash)
+     |
+     +---> Metode 3: Verifikasi via QR Code
+     |       Scan QR Code dari PDF ijazah
+     |           |
+     |           v
+     |       QR berisi URL: frontend/verify/{hash}
+     |           |
+     |           v
+     |       Langsung menuju halaman verifikasi dengan hash
+     |       Proses sama seperti verifikasi via hash
+     |
+     v
+   [Selesai]
+
+
+----------------------------------------------------------------------
+1.5. Alur Revokasi Ijazah
+----------------------------------------------------------------------
+   Mulai
+     |
+     v
+   [Admin Akademik] pilih ijazah status "issued"
+     |
+     v
+   Klik "Revoke Certificate"
+     |
+     v
+   Update status ijazah menjadi "revoked"
+   Catat notes alasan revokasi
+     |
+     v
+   Verifikasi selanjutnya akan menampilkan "REVOKED"
+     |
+     v
+   [Selesai]
+
+
+
+========================================================================
+2. TEKNOLOGI YANG DIGUNAKAN
+========================================================================
+
+----------------------------------------------------------------------
+2.1. Frontend (Client-Side)
+----------------------------------------------------------------------
+  | Teknologi            | Versi     | Fungsi                                   |
+  |----------------------|-----------|------------------------------------------|
+  | Next.js              | 16.2.6    | Framework React full-stack (App Router)   |
+  | React                | 19.2.4    | Library UI                               |
+  | TypeScript           | 5.x       | Type safety                              |
+  | Tailwind CSS         | 4.x       | Utility-first styling                    |
+  | Framer Motion        | 12.38.0   | Animasi UI                               |
+  | GSAP                 | 3.15.0    | Advanced animations (landing page)        |
+  | Three.js / R3F       | 0.184.0   | 3D rendering (dekoratif)                 |
+  | @tanstack/react-query| 5.100.9   | Server state management, data fetching    |
+  | Axios                | 1.16.0    | HTTP client untuk panggilan API           |
+  | React Hook Form      | 7.75.0    | Form handling                            |
+  | Zod                  | 4.4.3     | Validasi form                            |
+  | React Dropzone       | 15.0.0    | Upload file PDF drag-and-drop            |
+  | Recharts             | 3.8.1     | Chart/diagram dashboard                  |
+  | Lucide React         | 1.14.0    | Icon library                             |
+  | Radix UI             | -         | Komponen UI aksesibel (Dialog, Tabs, dll)|
+
+----------------------------------------------------------------------
+2.2. Backend (Server-Side)
+----------------------------------------------------------------------
+  | Teknologi            | Versi     | Fungsi                                   |
+  |----------------------|-----------|------------------------------------------|
+  | PHP                  | ^8.3      | Bahasa pemrograman backend               |
+  | Laravel              | 13.x      | Framework backend MVC                    |
+  | Laravel Sanctum      | 4.3       | API authentication (token-based)          |
+  | Spatie Permission    | 7.4       | Role-based access control (RBAC)          |
+  | Laravel DomPDF       | 3.1       | Generate PDF ijazah                      |
+  | Endroid QR Code      | 6.1       | Generate QR Code untuk verifikasi         |
+  | Intervention Image   | 4.0       | Manipulasi gambar                        |
+  | Predis               | 3.4       | Redis client (caching/queue)             |
+  | web3p/web3.php       | 0.1.6     | Ethereum JSON-RPC client (blockchain)     |
+
+----------------------------------------------------------------------
+2.3. Database
+----------------------------------------------------------------------
+  | Teknologi            | Versi     | Fungsi                                   |
+  |----------------------|-----------|------------------------------------------|
+  | MySQL                | 8.0+      | Database relasional utama                |
+
+----------------------------------------------------------------------
+2.4. Blockchain
+----------------------------------------------------------------------
+  | Teknologi            | Detail                                   |
+  |----------------------|------------------------------------------|
+  | Blockchain           | Ethereum                                 |
+  | Jaringan Development | Sepolia Testnet (Chain ID: 11155111)      |
+  | Jaringan Production  | Ethereum Mainnet (Chain ID: 1)            |
+  | Library             | web3p/web3.php (JSON-RPC)                |
+  | Smart Contract      | Custom contract di address tertentu       |
+  | Mock Mode           | Ada (untuk development tanpa blockchain)  |
+  | Block Explorer      | https://sepolia.etherscan.io              |
+
+  Data yang disimpan di blockchain per transaksi:
+    - Nama mahasiswa
+    - NIM mahasiswa
+    - SHA-256 hash ijazah
+    - Nomor ijazah
+    - Status issue/revoke
+
+----------------------------------------------------------------------
+2.5. Infrastruktur & Tools
+----------------------------------------------------------------------
+  | Teknologi            | Fungsi                                   |
+  |----------------------|------------------------------------------|
+  | Composer             | Dependency manager PHP                   |
+  | NPM                  | Dependency manager Node.js               |
+  | Git                  | Version control                          |
+  | Laragon              | Local development environment (Windows)   |
+
+
+
+========================================================================
+3. SPESIFIKASI KEBUTUHAN SISTEM (SRS)
+========================================================================
+
+----------------------------------------------------------------------
+3.1. Tujuan Sistem
+----------------------------------------------------------------------
+  Sistem Ijazah Digital Berbasis Blockchain Universitas Subang bertujuan
+  untuk:
+    1. Mendigitalisasi proses penerbitan ijazah
+    2. Mengamankan data ijazah menggunakan teknologi blockchain
+    3. Menyediakan verifikasi ijazah secara publik dan instan
+    4. Mencegah pemalsuan ijazah
+    5. Menyediakan audit trail yang lengkap
+
+----------------------------------------------------------------------
+3.2. Fitur-Fitur Utama (Functional Requirements)
+----------------------------------------------------------------------
+  FR-01: Autentikasi Pengguna
+    - Login dengan email dan password
+    - Logout
+    - Ganti password
+    - Token-based authentication (Sanctum)
+
+  FR-02: Manajemen Mahasiswa
+    - CRUD data mahasiswa
+    - Import mahasiswa massal
+    - Filter berdasarkan fakultas/prodi
+    - Search berdasarkan NIM/nama
+
+  FR-03: Manajemen Ijazah/Sertifikat
+    - Generate ijazah (draft)
+    - Update metadata ijazah
+    - Publish ke blockchain
+    - Download PDF ijazah
+    - Revoke ijazah
+    - Status workflow: draft -> pending -> issued -> revoked
+
+  FR-04: Verifikasi Ijazah (Publik)
+    - Verifikasi via SHA-256 hash
+    - Verifikasi via upload file PDF
+    - Verifikasi via QR Code (redirect URL)
+    - Tampilkan detail mahasiswa jika valid
+    - Tampilkan status revoked jika dicabut
+
+  FR-05: Dashboard & Statistik
+    - Statistik real-time (total alumni, ijazah terbit, verifikasi)
+    - Grafik dan chart (Recharts)
+    - Role-based dashboard view
+
+  FR-06: Role-Based Access Control
+    - Super Admin: akses penuh, manajemen user
+    - Admin Akademik: manajemen mahasiswa & ijazah
+    - Verifikator: lihat log verifikasi
+    - Mahasiswa: lihat profil & status ijazah sendiri
+
+  FR-07: Audit Trail
+    - Log semua aktivitas pengguna
+    - Log semua verifikasi (IP, user agent, hasil)
+    - Log transaksi blockchain
+
+----------------------------------------------------------------------
+3.3. Kebutuhan Non-Fungsional (Non-Functional Requirements)
+----------------------------------------------------------------------
+  NFR-01: Keamanan
+    - Password di-hash menggunakan bcrypt
+    - API dilindungi token (Sanctum)
+    - Data di blockchain immutable
+
+  NFR-02: Kinerja
+    - Verifikasi ijazah < 3 detik
+    - Generate PDF < 10 detik
+    - Halaman dashboard load < 3 detik
+
+  NFR-03: Availability
+    - Sistem tersedia 24/7
+    - Downtime maintenance < 2 jam/bulan
+
+  NFR-04: Usability
+    - UI responsif (mobile & desktop)
+    - Bahasa Indonesia
+    - Dark theme modern
+
+  NFR-05: Scalability
+    - Mendukung ribuan alumni
+    - Database dapat di-scale vertikal/horizontal
+
+
+
+========================================================================
+4. PEMODELAN SISTEM (UML)
+========================================================================
+  Sistem ini dimodelkan menggunakan Unified Modeling Language (UML)
+  dengan diagram-diagram berikut:
+    - Use Case Diagram
+    - Activity Diagram
+    - Robustness Diagram
+    - Class Diagram
+    - Sequence Diagram
+
+  Semua diagram menggunakan standar UML 2.5.
+
+
+
+========================================================================
+5. USE CASE DIAGRAM & SKENARIO USE CASE
+========================================================================
+
+----------------------------------------------------------------------
+5.1. Use Case Diagram (Textual Representation)
+----------------------------------------------------------------------
+  Aktor:
+    - Super Admin
+    - Admin Akademik
+    - Verifikator
+    - Mahasiswa
+    - Visitor / Publik (unauthenticated)
+
+  Use Cases:
+    +-----------------------+------------------+------------------------+
+    | Use Case              | Aktor            | Keterangan             |
+    +-----------------------+------------------+------------------------+
+    | Login                 | Semua (kecuali   | Autentikasi sistem     |
+    |                       | Visitor)         |                        |
+    | Logout                | Semua (kecuali   | Keluar dari sistem     |
+    |                       | Visitor)         |                        |
+    | Ganti Password        | Semua (kecuali   | Ubah password akun     |
+    |                       | Visitor)         |                        |
+    | Kelola User           | Super Admin      | CRUD user & role       |
+    | Kelola Fakultas       | Super Admin      | CRUD fakultas          |
+    | Kelola Prodi          | Super Admin      | CRUD program studi     |
+    | Kelola Mahasiswa      | Super Admin,     | CRUD mahasiswa         |
+    |                       | Admin Akademik   |                        |
+    | Import Mahasiswa      | Super Admin,     | Import massal          |
+    |                       | Admin Akademik   |                        |
+    | Generate Ijazah       | Admin Akademik   | Buat ijazah draft      |
+    | Publish ke Blockchain | Admin Akademik   | Terbitkan ke Ethereum  |
+    | Revoke Ijazah         | Admin Akademik   | Cabut ijazah           |
+    | Download Ijazah       | Admin Akademik,  | Download PDF ijazah    |
+    |                       | Mahasiswa        |                        |
+    | Lihat Dashboard       | Semua (login)    | Statistik & grafik     |
+    | Lihat Log Verifikasi  | Admin,           | Riwayat verifikasi     |
+    |                       | Verifikator      |                        |
+    | Verifikasi via Hash   | Visitor          | Verifikasi publik      |
+    | Verifikasi via File   | Visitor          | Verifikasi upload PDF  |
+    | Verifikasi via QR     | Visitor          | Scan QR -> redirect    |
+    +-----------------------+------------------+------------------------+
+
+----------------------------------------------------------------------
+5.2. Skenario Use Case
+----------------------------------------------------------------------
+
+  --- UC-01: Login ---
+  Aktor: Super Admin, Admin Akademik, Verifikator, Mahasiswa
+  Pre-condition: Pengguna memiliki akun terdaftar
+  Trigger: Pengguna membuka halaman login
+  Skenario Normal:
+    1. Sistem menampilkan form login (email & password)
+    2. Pengguna memasukkan email dan password
+    3. Sistem memvalidasi kredensial
+    4. Sistem membuat token Sanctum
+    5. Sistem mengembalikan token dan data user
+    6. Sistem redirect ke halaman dashboard sesuai role
+  Post-condition: Pengguna berhasil login dan mendapat token akses
+  Skenario Alternatif (gagal):
+    3a. Email tidak ditemukan -> tampilkan error "Email tidak terdaftar"
+    3b. Password salah -> tampilkan error "Password salah"
+    3c. Akun nonaktif -> tampilkan error "Akun telah dinonaktifkan"
+
+
+  --- UC-02: Generate Ijazah ---
+  Aktor: Admin Akademik
+  Pre-condition: Admin sudah login dan ada mahasiswa dengan status 'lulus'
+  Trigger: Admin memilih mahasiswa lalu klik "Generate Ijazah"
+  Skenario Normal:
+    1. Admin pilih mahasiswa dari daftar
+    2. Sistem menampilkan form input IPK dan tanggal lulus
+    3. Admin memasukkan IPK dan tanggal lulus
+    4. Sistem generate hash SHA-256 dari data mahasiswa
+    5. Sistem generate nomor ijazah: UNSUB/{prodi}/{tahun}/{random}
+    6. Sistem generate QR Code berisi URL verifikasi
+    7. Sistem simpan ijazah dengan status 'draft'
+    8. Sistem update mahasiswa: ipk, tahun_lulus, status='lulus'
+    9. Tampilkan notifikasi sukses
+  Post-condition: Ijazah baru dengan status 'draft' tersimpan di database
+  Skenario Alternatif:
+    4a. Mahasiswa sudah punya ijazah -> tolak dengan error
+
+
+  --- UC-03: Publish ke Blockchain ---
+  Aktor: Admin Akademik
+  Pre-condition: Ijazah berstatus 'draft'
+  Trigger: Admin klik tombol "Publish" pada ijazah
+  Skenario Normal:
+    1. Sistem panggil BlockchainService::issueCertificate()
+    2. (Mock Mode) Sistem generate tx hash random
+    3. (Production) Sistem kirim transaksi ke smart contract Ethereum
+    4. Catat transaksi di tabel blockchain_transactions
+    5. Update ijazah: tx_hash, block, timestamp, status='issued'
+    6. Generate PDF ijazah via DomPDF (include QR code & link Etherscan)
+    7. Simpan file PDF di storage
+    8. Hitung pdf_hash
+    9. Tampilkan notifikasi sukses
+  Post-condition: Ijazah terbit, hash tersimpan di blockchain, PDF tergenerate
+  Skenario Alternatif:
+    3a. Transaksi gagal -> catat log error, status transaksi 'failed'
+
+
+  --- UC-04: Verifikasi via Hash ---
+  Aktor: Visitor (Publik)
+  Pre-condition: Tidak perlu login
+  Trigger: Visitor memasukkan hash SHA-256 (64 karakter hex)
+  Skenario Normal:
+    1. Visitor memasukkan hash di form
+    2. Sistem validasi format hash (harus 64 karakter hex)
+    3. Sistem cari di tabel ijazah berdasarkan hash_sha256
+    4. Sistem verifikasi via BlockchainService::verifyCertificate()
+    5. Jika valid:
+       - Tampilkan data mahasiswa (nama, NIM, prodi, IPK, fakultas)
+       - Tampilkan status "VALID"
+    6. Catat log verifikasi (IP, user agent, timestamp, hasil)
+  Post-condition: Hasil verifikasi ditampilkan, log tersimpan
+  Skenario Alternatif:
+    3a. Hash tidak ditemukan -> tampilkan "Ijazah tidak ditemukan"
+    4a. Hash revoked -> tampilkan "Ijazah telah dicabut"
+
+
+  --- UC-05: Verifikasi via Upload File ---
+  Aktor: Visitor (Publik)
+  Pre-condition: Tidak perlu login
+  Trigger: Visitor upload file PDF ijazah
+  Skenario Normal:
+    1. Visitor memilih file PDF (max 5MB)
+    2. Sistem validasi file (tipe PDF, ukuran)
+    3. Sistem hitung SHA-256 hash dari file yang diupload
+    4. Sistem cari di tabel ijazah berdasarkan pdf_hash
+    5. Sistem verifikasi via blockchain
+    6. Tampilkan hasil (sama seperti verifikasi hash)
+    7. Catat log verifikasi
+  Post-condition: Hasil verifikasi ditampilkan
+  Skenario Alternatif:
+    2a. File bukan PDF -> tolak
+    2b. File > 5MB -> tolak
+
+
+  --- UC-06: Revoke Ijazah ---
+  Aktor: Admin Akademik
+  Pre-condition: Ijazah berstatus 'issued'
+  Trigger: Admin klik "Revoke Certificate"
+  Skenario Normal:
+    1. Admin memilih ijazah yang akan di-revoke
+    2. Sistem konfirmasi "Yakin ingin revoke?"
+    3. Admin konfirmasi
+    4. Sistem update status ijazah menjadi 'revoked'
+    5. Sistem catat notes revokasi
+    6. Tampilkan notifikasi sukses
+  Post-condition: Ijazah status 'revoked', verifikasi akan menolak
+
+
+
+========================================================================
+6. ACTIVITY DIAGRAM
+========================================================================
+
+----------------------------------------------------------------------
+6.1. Activity Diagram: Generate & Publish Ijazah
+----------------------------------------------------------------------
+  +------------------+          +------------------+          +------------------+
+  | Admin Akademik   |          | Sistem           |          | Blockchain       |
+  +------------------+          +------------------+          +------------------+
+          |                             |                             |
+          | Pilih Mahasiswa             |                             |
+          |---------------------------->|                             |
+          |                             | Validasi status             |
+          |                             |---------------------       |
+          |                             |                             |
+          | Input IPK & Tgl Lulus      |                             |
+          |---------------------------->|                             |
+          |                             |                             |
+          |                             | Generate:                   |
+          |                             | - Nomor Ijazah              |
+          |                             | - SHA-256 Hash              |
+          |                             | - QR Code                   |
+          |                             |                             |
+          |                             | Simpan Ijazah (draft)       |
+          |                             |                             |
+          | Klik "Publish"              |                             |
+          |---------------------------->|                             |
+          |                             |                             |
+          |                             | Kirim hash ke smart         |
+          |                             | contract                    |
+          |                             |---------------------------->|
+          |                             |                             |
+          |                             |      Konfirmasi transaksi   |
+          |                             |<----------------------------|
+          |                             |                             |
+          |                             | Catat tx_hash               |
+          |                             | Generate PDF Ijazah         |
+          |                             | Simpan file                 |
+          |                             |                             |
+          |    Notifikasi Sukses        |                             |
+          |<----------------------------|                             |
+          v                             v                             v
+
+----------------------------------------------------------------------
+6.2. Activity Diagram: Verifikasi Ijazah
+----------------------------------------------------------------------
+  +------------------+          +------------------+          +------------------+
+  | Visitor          |          | Sistem           |          | Blockchain       |
+  +------------------+          +------------------+          +------------------+
+          |                             |                             |
+          | Pilih metode verifikasi     |                             |
+          |----+                        |                             |
+          |    |                        |                             |
+          |    v                        |                             |
+          | [Hash] [Upload PDF] [QR]    |                             |
+          |    |                        |                             |
+          |    +----> Input/Upload ---->|                             |
+          |                             |                             |
+          |                             | Hitung/validasi hash        |
+          |                             |                             |
+          |                             | Cari di database            |
+          |                             |                             |
+          |                             | Verifikasi ke blockchain    |
+          |                             |---------------------------->|
+          |                             |                             |
+          |                             |   Kembalikan hasil verifikasi|
+          |                             |<----------------------------|
+          |                             |                             |
+          |                             | Catat log verifikasi        |
+          |                             |                             |
+          |    Tampilkan hasil          |                             |
+          |<----------------------------|                             |
+          |                             |                             |
+          v                             v                             v
+
+
+
+========================================================================
+7. ROBUSTNESS DIAGRAM
+========================================================================
+
+----------------------------------------------------------------------
+7.1. Robustness Diagram: Verifikasi Ijazah
+----------------------------------------------------------------------
+  +------------+       +------------------+       +-------------+
+  | Visitor    |------>| VerificationForm |------>| Verification|
+  | (Actor)    |       | (Boundary)       |       | Controller  |
+  +------------+       +------------------+       | (Control)   |
+                                                  +------+------+
+                                                         |
+                                          +--------------+--------------+
+                                          |              |              |
+                                          v              v              v
+                                   +----------+   +----------+   +------------+
+                                   | Ijazah   |   |Blockchain|   |Verification|
+                                   | (Entity) |   | Service  |   | Log        |
+                                   +----------+   |(Control) |   | (Entity)   |
+                                                   +----------+   +------------+
+
+  Deskripsi:
+    - Boundary: VerificationForm (komponen React frontend)
+    - Control: VerificationController (Laravel), BlockchainService
+    - Entity: Ijazah (model), VerificationLog (model),
+              BlockchainTransaction (model)
+
+----------------------------------------------------------------------
+7.2. Robustness Diagram: Publish Ijazah
+----------------------------------------------------------------------
+  +--------------+       +-----------------+       +------------------+
+  |Admin Akademik|------>| PublishButton   |------>|CertificateControl|
+  | (Actor)      |       | (Boundary)      |       | ler (Control)    |
+  +--------------+       +-----------------+       +--------+---------+
+                                                             |
+                                          +------------------+------------------+
+                                          |                  |                  |
+                                          v                  v                  v
+                                   +----------+      +----------+       +------------+
+                                   | Ijazah   |      |Blockchain|       |Certificate |
+                                   | (Entity) |      | Service  |       | Service    |
+                                   +----------+      |(Control) |       | (Control)  |
+                                                      +----------+       +------+-----+
+                                                                               |
+                                                                  +------------+------------+
+                                                                  |            |            |
+                                                                  v            v            v
+                                                            +----------+  +--------+  +---------+
+                                                            | DomPDF   |  | QR Code|  | Storage |
+                                                            |(Control) |  |(Control|  |(Entity) |
+                                                            +----------+  |  )     |  +---------+
+                                                                          +--------+
+
+  Deskripsi:
+    - Boundary: PublishButton (komponen React)
+    - Control: CertificateController, BlockchainService, CertificateService
+    - Entity: Ijazah, PDF file (storage), QR Code file (storage)
+
+
+
+========================================================================
+8. CLASS DIAGRAM
+========================================================================
+
+----------------------------------------------------------------------
+8.1. Entity Relationship / Class Diagram (Struktur Data)
+----------------------------------------------------------------------
+  +-------------------+          +-------------------+
+  |      User         |          |    Fakultas       |
+  +-------------------+          +-------------------+
+  | id: CHAR(36) PK   |          | id: CHAR(36) PK   |
+  | name: VARCHAR     |          | kode: VARCHAR(10) |
+  | email: VARCHAR    |          | nama: VARCHAR     |
+  | password: VARCHAR |          | created_at        |
+  | role: ENUM        |          | updated_at        |
+  | remember_token    |          +-------------------+
+  | timestamps        |                |
+  +-------------------+                | 1
+        |                              |
+        | 1                            | has many
+        |                              |
+        | 0..1                         v
+        |                    +-------------------+
+        |                    |      Prodi        |
+        |                    +-------------------+
+        v                    | id: CHAR(36) PK   |
+  +-------------------+      | fakultas_id: FK   |
+  |    Mahasiswa      |------| kode: VARCHAR(10) |
+  +-------------------+      | nama: VARCHAR     |
+  | id: CHAR(36) PK   |      | jenjang: ENUM     |
+  | nim: VARCHAR(20)  |      | timestamps        |
+  | nama_lengkap: VARCHAR|   +-------------------+
+  | tempat_lahir      |           |
+  | tanggal_lahir     |           | 1
+  | jenis_kelamin     |           |
+  | prodi_id: FK      |-----------
+  | tahun_masuk       |
+  | tahun_lulus       |      +-------------------+
+  | ipk: DECIMAL(4,2) |      |   Blockchain      |
+  | judul_skripsi     |      |   Transaction     |
+  | email: VARCHAR    |      +-------------------+
+  | no_hp: VARCHAR    |      | id: CHAR(36) PK   |
+  | foto: TEXT        |      | ijazah_id: FK      |
+  | status: ENUM      |      | tx_hash: VARCHAR   |
+  | user_id: FK       |      | block_hash         |
+  | timestamps        |      | block_number: BIGINT|
+  +-------------------+      | from_address       |
+        |                    | to_address         |
+        | 1                  | gas_used: BIGINT   |
+        |                    | type: ENUM         |
+        |                    | payload: JSON      |
+        |                    | status: ENUM       |
+        |                    | timestamps         |
+        v                    +-------------------+
+  +-------------------+            ^
+  |     Ijazah        |            |
+  +-------------------+            | 0..1
+  | id: CHAR(36) PK   |------------
+  | mahasiswa_id: FK  |      +-------------------+
+  | nomor_ijazah: VARCHAR|    | VerificationLog   |
+  | hash_sha256: VARCHAR|    +-------------------+
+  | pdf_hash: VARCHAR  |      | id: CHAR(36) PK   |
+  | qr_code_path      |      | ijazah_id: FK      |
+  | file_path         |      | certificate_hash   |
+  | blockchain_tx_hash|      | verification_method|
+  | blockchain_block  |      | ip_address         |
+  | blockchain_timestamp|    | user_agent: TEXT   |
+  | status: ENUM      |      | verification_result|
+  | issued_by: FK     |      | is_valid: BOOLEAN  |
+  | issued_at         |      | created_at         |
+  | notes: TEXT       |      +-------------------+
+  | timestamps        |
+  +-------------------+
+
++----------------------+
+|   ActivityLog        |
++----------------------+
+| id: CHAR(36) PK      |
+| user_id: FK          |
+| action: VARCHAR(100) |
+| description: TEXT    |
+| ip_address           |
+| user_agent: TEXT     |
+| metadata: JSON       |
+| created_at           |
++----------------------+
+
+----------------------------------------------------------------------
+8.2. Relasi Antar Class (Summary)
+----------------------------------------------------------------------
+  Fakultas (1) ----< Prodi (N)
+  Prodi (1) ----< Mahasiswa (N)
+  User (1) ---- 0..1 Mahasiswa
+  User (1) ----< Ijazah (N) [sebagai issuer]
+  Mahasiswa (1) ---- 0..1 Ijazah
+  Ijazah (1) ---- 0..1 BlockchainTransaction
+  Ijazah (1) ----< VerificationLog (N)
+  User (1) ----< ActivityLog (N)
+
+
+
+========================================================================
+9. SEQUENCE DIAGRAM
+========================================================================
+
+----------------------------------------------------------------------
+9.1. Sequence Diagram: Login
+----------------------------------------------------------------------
+  +--------+     +----------+     +----------+     +--------+
+  | User   |     | Frontend |     | Backend  |     |Database|
+  |(Browser)|    |(Next.js) |     |(Laravel) |     |(MySQL) |
+  +--------+     +----------+     +----------+     +--------+
+      |               |                |               |
+      | Input email & |                |               |
+      | password       |                |               |
+      |--------------->|                |               |
+      |               | POST /api/auth/ |               |
+      |               | login           |               |
+      |               |--------------->|                |
+      |               |                | Cari user by   |
+      |               |                | email          |
+      |               |                |--------------->|
+      |               |                | User data      |
+      |               |                |<--------------|
+      |               |                |                |
+      |               |                | Validasi       |
+      |               |                | password (bcrypt)|
+      |               |                |                |
+      |               |                | Create Sanctum |
+      |               |                | token          |
+      |               |                |                |
+      |               |  {token, user} |                |
+      |               |<---------------|                |
+      |               |                |                |
+      | Redirect ke   |                |                |
+      | dashboard     |                |                |
+      |<--------------|                |                |
+      |               |                |                |
+
+----------------------------------------------------------------------
+9.2. Sequence Diagram: Publish Ijazah ke Blockchain
+----------------------------------------------------------------------
+  +-----------+      +----------+      +----------+      +---------+      +-----------+
+  |Admin      |      | Frontend |      | Backend  |      | Service |      | Blockchain|
+  |Akademik   |      |(Next.js) |      |(Laravel) |      |Layer    |      | (Ethereum)|
+  +-----------+      +----------+      +----------+      +---------+      +-----------+
+       |                 |                 |                 |                 |
+       | Klik "Publish"  |                 |                 |                 |
+       |---------------->|                 |                 |                 |
+       |                 | POST /certific- |                 |                 |
+       |                 | ates/{id}/publish|                |                 |
+       |                 |---------------->|                 |                 |
+       |                 |                 | Validasi status |                 |
+       |                 |                 | (harus 'draft') |                 |
+       |                 |                 |                 |                 |
+       |                 |                 | CertService:    |                 |
+       |                 |                 | issueCertificate|                 |
+       |                 |                 |---------------->|                 |
+       |                 |                 |                 |                 |
+       |                 |                 |   (Mock Mode)   |                 |
+       |                 |                 |   Generate tx   |                 |
+       |                 |                 |   hash random   |                 |
+       |                 |                 |                 |                 |
+       |                 |                 |   (atau real)   |                 |
+       |                 |                 |   JSON-RPC call |                 |
+       |                 |                 |--------------------------------->|
+       |                 |                 |                 |   tx_hash       |
+       |                 |                 |<---------------------------------|
+       |                 |                 |                 |                 |
+       |                 |                 | Simpan tx ke DB |                 |
+       |                 |                 | Update ijazah   |                 |
+       |                 |                 |                 |                 |
+       |                 |                 | CertService:    |                 |
+       |                 |                 | generatePDF     |                 |
+       |                 |                 |---------------->|                 |
+       |                 |                 |  PDF path       |                 |
+       |                 |                 |<----------------|                 |
+       |                 |                 |                 |                 |
+       |                 |   {success,     |                 |                 |
+       |                 |    certificate}  |                 |                 |
+       |                 |<----------------|                 |                 |
+       |   Notifikasi    |                 |                 |                 |
+       |<----------------|                 |                 |                 |
+       |                 |                 |                 |                 |
+
+----------------------------------------------------------------------
+9.3. Sequence Diagram: Verifikasi via Hash
+----------------------------------------------------------------------
+  +-----------+      +----------+      +----------+      +---------+      +-----------+
+  | Visitor   |      | Frontend |      | Backend  |      | Service |      | Blockchain|
+  |(Browser)  |      |(Next.js) |      |(Laravel) |      |Layer    |      | (Ethereum)|
+  +-----------+      +----------+      +----------+      +---------+      +-----------+
+       |                 |                 |                 |                 |
+       | Input hash (64  |                 |                 |                 |
+       | karakter hex)   |                 |                 |                 |
+       |---------------->|                 |                 |                 |
+       |                 | POST /api/verify|                 |                 |
+       |                 | /hash           |                 |                 |
+       |                 | {hash: "..."}   |                 |                 |
+       |                 |---------------->|                 |                 |
+       |                 |                 | Validasi hash   |                 |
+       |                 |                 | (64 char hex)   |                 |
+       |                 |                 |                 |                 |
+       |                 |                 | Cari Ijazah by  |                 |
+       |                 |                 | hash_sha256     |                 |
+       |                 |                 |---------------->|                 |
+       |                 |                 | Ijazah data     |                 |
+       |                 |                 |<----------------|                 |
+       |                 |                 |                 |                 |
+       |                 |                 | Blockchain:     |                 |
+       |                 |                 | verifyCertifi-  |                 |
+       |                 |                 | cate(hash)      |                 |
+       |                 |                 |---------------->|                 |
+       |                 |                 | isValid=true    |                 |
+       |                 |                 |<----------------|                 |
+       |                 |                 |                 |                 |
+       |                 |                 | Simpan log      |                 |
+       |                 |                 | verifikasi      |                 |
+       |                 |                 |                 |                 |
+       |                 | {valid, data}   |                 |                 |
+       |                 |<----------------|                 |                 |
+       | Tampilkan hasil |                 |                 |                 |
+       | verifikasi      |                 |                 |                 |
+       |<----------------|                 |                 |                 |
+       |                 |                 |                 |                 |
+
+
+
+========================================================================
+10. STRUKTUR SISTEM
+========================================================================
+
+----------------------------------------------------------------------
+10.1. Struktur Folder Frontend (Next.js - App Router)
+----------------------------------------------------------------------
+  frontend/
+  +-- app/
+  |   +-- layout.tsx              # Root layout (metadata, fonts, providers)
+  |   +-- page.tsx                # Landing page (hero, stats, features)
+  |   +-- login/
+  |   |   +-- page.tsx            # Halaman login
+  |   +-- verify/
+  |   |   +-- page.tsx            # Form verifikasi publik
+  |   |   +-- [hash]/
+  |   |       +-- page.tsx        # Verifikasi langsung via hash (QR scan)
+  |   +-- dashboard/
+  |       +-- layout.tsx          # Dashboard shell (sidebar, header)
+  |       +-- page.tsx            # Dashboard utama (statistik)
+  |       +-- mahasiswa/
+  |       |   +-- page.tsx        # Manajemen mahasiswa
+  |       |   +-- [id]/
+  |       |       +-- page.tsx    # Detail mahasiswa
+  |       +-- sertifikat/
+  |       |   +-- page.tsx        # Manajemen ijazah/sertifikat
+  |       +-- verifikasi/
+  |       |   +-- page.tsx        # Manajemen verifikasi
+  |       +-- riwayat/
+  |       |   +-- page.tsx        # Riwayat verifikasi
+  |       +-- admin/
+  |           +-- page.tsx        # Panel Super Admin
+  +-- components/
+  |   +-- verification/
+  |       +-- VerificationForm.tsx # Komponen form verifikasi (reusable)
+  +-- public/                      # Static assets
+  +-- package.json
+  +-- tsconfig.json
+  +-- tailwind.config.ts
+
+----------------------------------------------------------------------
+10.2. Struktur Folder Backend (Laravel 13)
+----------------------------------------------------------------------
+  backend/
+  +-- app/
+  |   +-- Http/
+  |   |   +-- Controllers/
+  |   |   |   +-- API/
+  |   |   |       +-- AuthController.php         # Login, logout, me
+  |   |   |       +-- CertificateController.php   # Generate, publish, revoke
+  |   |   |       +-- VerificationController.php  # Verifikasi hash/file/stats
+  |   |   |       +-- DashboardController.php     # Statistik dashboard
+  |   |   |       +-- MahasiswaController.php     # CRUD mahasiswa
+  |   |   |       +-- AdminController.php         # User, fakultas, prodi
+  |   |   |       +-- VerificationLogController.php # Log verifikasi
+  |   |   +-- Middleware/
+  |   |       +-- ... (Laravel default + Sanctum)
+  |   +-- Models/
+  |   |   +-- User.php                # Model user dengan roles
+  |   |   +-- Mahasiswa.php           # Model mahasiswa
+  |   |   +-- Ijazah.php              # Model ijazah/sertifikat
+  |   |   +-- Fakultas.php            # Model fakultas
+  |   |   +-- Prodi.php               # Model prodi
+  |   |   +-- BlockchainTransaction.php # Model transaksi blockchain
+  |   |   +-- VerificationLog.php     # Model log verifikasi
+  |   |   +-- ActivityLog.php         # Model log aktivitas
+  |   +-- Services/
+  |       +-- CertificateService.php  # Logic hash, QR, PDF generation
+  |       +-- BlockchainService.php   # Logic interaksi blockchain
+  +-- routes/
+  |   +-- api.php                     # Semua definisi endpoint API
+  +-- database/
+  |   +-- schema.sql                  # Full database schema
+  |   +-- migrations/
+  +-- resources/
+  |   +-- views/
+  |       +-- certificates/
+  |           +-- ijazah.blade.php    # Template PDF ijazah
+  +-- storage/
+  |   +-- app/
+  |       +-- public/
+  |           +-- qr_codes/          # QR Code SVG files
+  |           +-- ijazah/            # PDF ijazah files
+  +-- .env                           # Environment configuration
+  +-- composer.json
+
+----------------------------------------------------------------------
+10.3. Struktur Database (MySQL)
+----------------------------------------------------------------------
+  Database: ijazah_blockchain
+  +-- fakultas                  # Data fakultas
+  +-- prodi                     # Data program studi
+  +-- users                     # Data user sistem
+  +-- mahasiswa                 # Data mahasiswa
+  +-- ijazah                    # Data ijazah/sertifikat
+  +-- blockchain_transactions   # Log transaksi blockchain
+  +-- verification_logs         # Log verifikasi publik
+  +-- activity_logs             # Log aktivitas pengguna
+  +-- personal_access_tokens    # Token Sanctum
+  +-- permissions               # Spatie permissions
+  +-- roles                     # Spatie roles
+  +-- model_has_roles           # Spatie pivot roles
+  +-- model_has_permissions     # Spatie pivot permissions
+  +-- role_has_permissions      # Spatie pivot role-permission
+  +-- cache                     # Laravel cache
+  +-- cache_locks               # Laravel cache locks
+  +-- jobs                      # Queue jobs
+  +-- job_batches               # Queue job batches
+  +-- failed_jobs               # Failed queue jobs
+
+
+
+========================================================================
+11. PERANCANGAN ARSITEKTUR SISTEM
+========================================================================
+
+----------------------------------------------------------------------
+11.1. Pola Arsitektur
+----------------------------------------------------------------------
+  Sistem menggunakan arsitektur berbasis layer (Layered Architecture)
+  dengan pembagian:
+
+  +========================================================================+
+  |  LAYER 1: PRESENTATION LAYER (Frontend - Next.js)                     |
+  |  - UI Components                                                       |
+  |  - Client-side state management                                        |
+  |  - Routing (App Router)                                                |
+  |  - HTTP communication via Axios                                        |
+  +========================================================================+
+                |                 REST API (JSON)
+                v
+  +========================================================================+
+  |  LAYER 2: APPLICATION LAYER (Backend - Laravel Controllers)           |
+  |  - Request handling                                                    |
+  |  - Validation                                                          |
+  |  - Authentication & Authorization                                      |
+  |  - Response formatting                                                 |
+  +========================================================================+
+                |
+                v
+  +========================================================================+
+  |  LAYER 3: SERVICE LAYER (Laravel Services)                            |
+  |  - Business logic (CertificateService)                                 |
+  |  - Blockchain interaction (BlockchainService)                          |
+  |  - PDF generation (DomPDF)                                             |
+  |  - QR Code generation (Endroid QR Code)                                |
+  +========================================================================+
+                |
+                v
+  +========================================================================+
+  |  LAYER 4: PERSISTENCE LAYER (Laravel Models + MySQL)                 |
+  |  - Eloquent ORM                                                        |
+  |  - MySQL database                                                      |
+  |  - File storage (local/public)                                         |
+  +========================================================================+
+
+----------------------------------------------------------------------
+11.2. Pola Desain (Design Patterns)
+----------------------------------------------------------------------
+  - MVC Pattern: Laravel (Model-View-Controller)
+  - Service Layer Pattern: CertificateService, BlockchainService
+  - Repository Pattern: via Eloquent ORM
+  - Dependency Injection: Laravel Service Container
+  - Singleton: BlockchainService (single instance)
+  - DTO (Data Transfer Object): JSON responses dari API
+
+----------------------------------------------------------------------
+11.3. Strategi Komunikasi
+----------------------------------------------------------------------
+  Frontend <-> Backend:
+    - RESTful API (JSON)
+    - HTTP Methods: GET, POST, PUT, DELETE
+    - Authentication: Bearer Token (Sanctum)
+    - CORS: Sanctum stateful domains
+
+  Backend <-> Blockchain:
+    - JSON-RPC via web3p/web3.php
+    - HTTP POST ke RPC URL (localhost:8545 untuk development)
+
+  Backend <-> Database:
+    - MySQL PDO via Laravel Eloquent ORM
+
+  Backend <-> File Storage:
+    - Laravel Filesystem (local/public disk)
+
+----------------------------------------------------------------------
+11.4. Strategi Keamanan
+----------------------------------------------------------------------
+  - Password: bcrypt (Laravel default)
+  - API Auth: Sanctum token-based
+  - CORS: terbatas ke frontend URL
+  - Input Validation: Form Request / Validator
+  - SQL Injection: Eloquent ORM (parameter binding)
+  - XSS: Blade escaping ({{ }})
+  - Blockchain: data immutable, hash verification
+  - Rate Limiting: bisa ditambahkan di Laravel
+
+
+
+========================================================================
+12. DIAGRAM ARSITEKTUR
+========================================================================
+
+----------------------------------------------------------------------
+12.1. High-Level Architecture Diagram
+----------------------------------------------------------------------
+  +============================================================================+
+  |                         INTERNET / BROWSER                                 |
+  +============================================================================+
+                           |                              |
+                           v                              v
+  +=========================================+  +======================+
+  |   FRONTEND (Next.js 16 + React 19)     |  |   QR Code Scanner    |
+  |-----------------------------------------|  |   (Mobile Camera)    |
+  |  - Landing Page                         |  +======================+
+  |  - Verification Form                    |
+  |  - Dashboard (Admin/Akademik/Verifikator|
+  |    /Mahasiswa)                          |
+  |  - Login Page                           |
+  +=========================================+
+                    |  HTTP/JSON (Axios)
+                    |  Bearer Token (Sanctum)
+                    v
+  +=========================================+
+  |   API GATEWAY / LOAD BALANCER          |
+  +=========================================+
+                    |
+                    v
+  +=============================================+
+  |   BACKEND (Laravel 13 - PHP 8.3+)          |
+  |---------------------------------------------|
+  |  +---------------------------------------+  |
+  |  | Controllers Layer                    |  |
+  |  |  - AuthController                   |  |
+  |  |  - CertificateController            |  |
+  |  |  - VerificationController           |  |
+  |  |  - DashboardController              |  |
+  |  |  - MahasiswaController              |  |
+  |  |  - AdminController                  |  |
+  |  +---------------------------------------+  |
+  |          |                                   |
+  |  +---------------------------------------+  |
+  |  | Services Layer                       |  |
+  |  |  - CertificateService (hash, QR, PDF)|  |
+  |  |  - BlockchainService (Ethereum)      |  |
+  |  +---------------------------------------+  |
+  |          |                     |             |
+  |          v                     v             |
+  |  +---------------+   +--------------------+  |
+  |  | Eloquent ORM  |   | DomPDF / QR Code  |  |
+  |  +---------------+   +--------------------+  |
+  |          |                     |             |
+  +=============================================+
+       |                         |
+       v                         v
+  +==============+    +======================+
+  |   MySQL 8.0  |    |   File Storage       |
+  |  (Database)  |    |   (PDF, QR Code)     |
+  +==============+    +======================+
+       |
+       v
+  +=============================================+
+  |   BLOCKCHAIN LAYER                          |
+  |---------------------------------------------|
+  |  +---------------------------------------+  |
+  |  | Ethereum Network (Sepolia Testnet)    |  |
+  |  |                                       |  |
+  |  |  Smart Contract: IjazahVerification  |  |
+  |  |  Functions:                          |  |
+  |  |    - issueCertificate(hash, data)    |  |
+  |  |    - verifyCertificate(hash)         |  |
+  |  |    - revokeCertificate(hash)         |  |
+  |  |                                       |  |
+  |  |  JSON-RPC via web3p/web3.php         |  |
+  |  +---------------------------------------+  |
+  |                                             |
+  |  +---------------------------------------+  |
+  |  | Etherscan Explorer                   |  |
+  |  | https://sepolia.etherscan.io         |  |
+  |  +---------------------------------------+  |
+  +=============================================+
+
+----------------------------------------------------------------------
+12.2. Deployment Architecture
+----------------------------------------------------------------------
+  +===============================+
+  |  Production Environment       |
+  |-------------------------------|
+  |  Frontend: Vercel / Netlify   |
+  |  Backend: Laravel Forge /     |
+  |           VPS (Ubuntu)        |
+  |  Database: MySQL on VPS / RDS |
+  |  Storage: Local / S3          |
+  |  Blockchain: Ethereum Mainnet |
+  |  Redis: Cache & Queue         |
+  +===============================+
+
+  +===============================+
+  |  Development Environment      |
+  |-------------------------------|
+  |  Local: Laragon (Windows)     |
+  |  Frontend: localhost:3000     |
+  |  Backend: localhost:8000      |
+  |  Database: MySQL local        |
+  |  Blockchain: Mock Mode /      |
+  |              Sepolia Testnet  |
+  +===============================+
+
+
+
+========================================================================
+13. KOMPONEN SISTEM
+========================================================================
+
+----------------------------------------------------------------------
+13.1. Komponen Frontend
+----------------------------------------------------------------------
+  +----------------------------------+---------------------------------------+
+  | Komponen                         | Fungsi                                |
+  +----------------------------------+---------------------------------------+
+  | LandingPage (/)                  | Halaman utama publik (hero, stats,    |
+  |                                  | features, CTA)                        |
+  | LoginPage (/login)               | Form autentikasi pengguna             |
+  | VerificationPage (/verify)       | Form verifikasi ijazah publik         |
+  | HashVerification (/verify/[hash])| Verifikasi langsung via URL hash      |
+  | DashboardLayout                  | Layout dashboard (sidebar + header)   |
+  | DashboardHome                    | Halaman utama dashboard + statistik   |
+  | MahasiswaManagement              | CRUD & import data mahasiswa          |
+  | CertificateManagement            | Generate, publish, revoke ijazah      |
+  | VerificationManagement           | Manajemen verifikasi                  |
+  | VerificationHistory              | Riwayat log verifikasi                |
+  | AdminPanel                       | Panel super admin (user, fakultas)    |
+  | VerificationForm (Component)     | Reusable form verifikasi (hash/file)  |
+  +----------------------------------+---------------------------------------+
+
+----------------------------------------------------------------------
+13.2. Komponen Backend
+----------------------------------------------------------------------
+  +----------------------------------+---------------------------------------+
+  | Komponen                         | Fungsi                                |
+  +----------------------------------+---------------------------------------+
+  | AuthController                   | Login, logout, me, change password    |
+  | CertificateController            | CRUD sertifikat, publish, revoke      |
+  | VerificationController           | Verifikasi via hash/file, stats       |
+  | DashboardController              | Statistik dashboard                   |
+  | MahasiswaController              | CRUD mahasiswa, import                |
+  | AdminController                  | CRUD user, fakultas, prodi, system    |
+  | VerificationLogController        | Log verifikasi                        |
+  | CertificateService               | Generate hash, nomor ijazah, QR, PDF  |
+  | BlockchainService                | Issue, verify, revoke di blockchain   |
+  | Ijazah (Model)                   | Model sertifikat/ijazah               |
+  | Mahasiswa (Model)                | Model mahasiswa                       |
+  | User (Model)                     | Model user + roles                    |
+  | Fakultas (Model)                 | Model fakultas                        |
+  | Prodi (Model)                    | Model program studi                   |
+  | BlockchainTransaction (Model)    | Model transaksi blockchain            |
+  | VerificationLog (Model)          | Model log verifikasi                  |
+  | ActivityLog (Model)              | Model log aktivitas                   |
+  +----------------------------------+---------------------------------------+
+
+----------------------------------------------------------------------
+13.3. Komponen Database
+----------------------------------------------------------------------
+  +----------------------------------+---------------------------------------+
+  | Tabel                            | Fungsi                                |
+  +----------------------------------+---------------------------------------+
+  | fakultas                         | Menyimpan data fakultas               |
+  | prodi                            | Menyimpan data program studi          |
+  | users                            | Menyimpan data user sistem            |
+  | mahasiswa                        | Menyimpan data mahasiswa              |
+  | ijazah                           | Menyimpan data ijazah/sertifikat      |
+  | blockchain_transactions          | Log transaksi blockchain              |
+  | verification_logs                | Log verifikasi publik                 |
+  | activity_logs                    | Log aktivitas pengguna                |
+  | personal_access_tokens           | Token autentikasi Sanctum             |
+  | permissions                      | Data permission Spatie                |
+  | roles                            | Data role Spatie                      |
+  +----------------------------------+---------------------------------------+
+
+----------------------------------------------------------------------
+13.4. Komponen Blockchain
+----------------------------------------------------------------------
+  +----------------------------------+---------------------------------------+
+  | Komponen                         | Fungsi                                |
+  +----------------------------------+---------------------------------------+
+  | Smart Contract                   | Kontrak pintar di Ethereum            |
+  | Ethereum Node (RPC)              | Node untuk interaksi JSON-RPC         |
+  | web3p/web3.php Library           | Library PHP untuk Ethereum            |
+  | BlockchainService (Mock)         | Service simulasi (development)        |
+  | Etherscan Explorer               | Explorer publik untuk cek tx          |
+  +----------------------------------+---------------------------------------+
+
+----------------------------------------------------------------------
+13.5. Integrasi Antar Komponen
+----------------------------------------------------------------------
+  Frontend + Backend:
+    - Axios HTTP client -> REST API endpoints
+    - React Query -> caching & state management
+    - Sanctum token -> authorization header
+
+  Backend + Database:
+    - Eloquent ORM -> MySQL queries
+    - Migrations -> schema management
+
+  Backend + Blockchain:
+    - BlockchainService -> web3p/web3.php -> JSON-RPC -> Ethereum node
+    - Smart contract -> store/verify hash
+
+  Backend + File System:
+    - Laravel Filesystem -> storage/app/public/
+    - DomPDF -> generate PDF ijazah
+    - Endroid QR Code -> generate QR Code SVG
+
+
+
+========================================================================
+                    DOKUMEN INI DIBUAT OTOMATIS
+          BERDASARKAN ANALISIS KODE SUMBER APLIKASI
+                    IJAZAH BLOCKCHAIN UNSUB
+                  Copyright (c) 2026 Universitas Subang
+========================================================================

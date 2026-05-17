@@ -88,13 +88,19 @@ class CertificateController extends Controller
 
     public function publishToBlockchain($id, Request $request)
     {
-        $ijazah = Ijazah::findOrFail($id);
+        $ijazah = Ijazah::with('mahasiswa')->findOrFail($id);
         
         if ($ijazah->status !== 'draft') {
             return response()->json(['error' => 'Certificate already published'], 422);
         }
 
-        $result = $this->blockchainService->issueCertificate($ijazah);
+        $result = $this->blockchainService->storeCertificate(
+            $ijazah->hash_sha256,
+            $ijazah->mahasiswa->nim,
+            $ijazah->mahasiswa->nama_lengkap,
+            $ijazah->nomor_ijazah,
+            (int) ($ijazah->mahasiswa->tahun_lulus ?? date('Y'))
+        );
         
         if ($result['success']) {
             $pdfPath = $this->certificateService->generatePDFCertificate($ijazah);

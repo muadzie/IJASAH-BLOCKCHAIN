@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
   Users, Plus, Search, Download, Upload, Edit, Trash2, Loader2,
@@ -39,15 +40,27 @@ export default function MahasiswaPage() {
   const [prodiList, setProdiList] = useState<Prodi[]>([])
   const [filterProdi, setFilterProdi] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   const [form, setForm] = useState({
     nim: '', nama_lengkap: '', email: '', no_hp: '',
     tempat_lahir: '', tanggal_lahir: '', jenis_kelamin: 'L',
     prodi_id: '', tahun_masuk: '', create_user: false,
+    tahun_lulus: '', ipk: '', judul_skripsi: '', status: 'aktif',
   })
+  const [fotoFile, setFotoFile] = useState<File | null>(null)
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null)
 
   const [importData, setImportData] = useState('')
+  const [importFile, setImportFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const searchParams = useSearchParams()
+  const editIdFromUrl = searchParams.get('id')
+
+  useEffect(() => {
+    if (editIdFromUrl) handleEdit(editIdFromUrl)
+  }, [editIdFromUrl])
 
   const fetchData = async () => {
     try {
@@ -81,19 +94,26 @@ export default function MahasiswaPage() {
   useEffect(() => { fetchRef() }, [])
 
   const resetForm = () => {
-    setForm({ nim: '', nama_lengkap: '', email: '', no_hp: '', tempat_lahir: '', tanggal_lahir: '', jenis_kelamin: 'L', prodi_id: '', tahun_masuk: '', create_user: false })
+    setForm({ nim: '', nama_lengkap: '', email: '', no_hp: '', tempat_lahir: '', tanggal_lahir: '', jenis_kelamin: 'L', prodi_id: '', tahun_masuk: '', create_user: false, tahun_lulus: '', ipk: '', judul_skripsi: '', status: 'aktif' })
     setEditId(null)
+    setFotoFile(null)
+    setFotoPreview(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
     try {
+      const fd = new FormData()
+      Object.entries(form).forEach(([k, v]) => fd.append(k, String(v)))
+      if (fotoFile) fd.append('foto', fotoFile)
+
       if (editId) {
-        await axios.put(`${API_URL}/mahasiswa/${editId}`, form)
+        fd.append('_method', 'PUT')
+        await axios.post(`${API_URL}/mahasiswa/${editId}`, fd)
         toast.success('Mahasiswa berhasil diupdate')
       } else {
-        await axios.post(`${API_URL}/mahasiswa`, form)
+        await axios.post(`${API_URL}/mahasiswa`, fd)
         toast.success('Mahasiswa berhasil ditambahkan')
       }
       resetForm()
@@ -115,7 +135,9 @@ export default function MahasiswaPage() {
         no_hp: m.no_hp || '', tempat_lahir: m.tempat_lahir || '',
         tanggal_lahir: m.tanggal_lahir || '', jenis_kelamin: m.jenis_kelamin || 'L',
         prodi_id: m.prodi_id, tahun_masuk: m.tahun_masuk || '', create_user: false,
+        tahun_lulus: m.tahun_lulus || '', ipk: m.ipk || '', judul_skripsi: m.judul_skripsi || '', status: m.status || 'aktif',
       })
+      setFotoPreview(m.foto ? `${API_URL.replace('/api', '')}/storage/${m.foto}` : null)
       setEditId(id)
       setShowAdd(true)
     } catch { toast.error('Gagal memuat data') }
@@ -130,17 +152,36 @@ export default function MahasiswaPage() {
     } catch { toast.error('Gagal menghapus (mungkin memiliki sertifikat)') }
   }
 
+  const parseCSV = (text: string) => {
+    const lines = text.trim().split('\n').filter(Boolean)
+    const header = lines[0].split(',').map(h => h.trim().toLowerCase())
+    return lines.slice(1).map(line => {
+      const vals = line.split(',').map(s => s.trim())
+      const row: any = {}
+      header.forEach((h, i) => {
+        const key = h.replace(/\s+/g, '_')
+        if (['nim', 'nama_lengkap', 'email', 'prodi_kode', 'tahun_masuk', 'tahun_lulus', 'ipk', 'status', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin', 'no_hp'].includes(key)) {
+          row[key] = vals[i] || ''
+        }
+      })
+      return row
+    }).filter(r => r.nim)
+  }
+
   const handleImport = async () => {
     setIsSubmitting(true)
     try {
-      const rows = importData.trim().split('\n').filter(Boolean).map(line => {
-        const [nim, nama_lengkap, email, prodi_kode, tahun_masuk] = line.split(',').map(s => s.trim())
-        return { nim, nama_lengkap, email, prodi_kode, tahun_masuk }
-      })
+      let rows: any[]
+      if (importFile) {
+        const text = await importFile.text()
+        rows = parseCSV(text)
+      } else {
+        rows = parseCSV(importData)
+      }
       if (rows.length === 0) { toast.error('Data kosong'); return }
       await axios.post(`${API_URL}/mahasiswa/import`, { data: rows })
       toast.success(`${rows.length} mahasiswa berhasil diimport`)
-      setImportData('')
+      setImportData(''); setImportFile(null)
       setShowImport(false)
       fetchData()
     } catch (error: any) {
@@ -148,6 +189,16 @@ export default function MahasiswaPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const downloadTemplate = () => {
+    const header = 'NIM,Nama Lengkap,Email,Kode Prodi,Tahun Masuk,Tahun Lulus,IPK,Status,Tempat Lahir,Tanggal Lahir,Jenis Kelamin,No HP'
+    const example = '20200121001,Ahmad Fauzi,ahmad@email.com,TI,2020,2024,3.75,lulus,Subang,2002-01-15,L,08123456789'
+    const blob = new Blob([`${header}\n${example}`], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'template_import_mahasiswa.csv'
+    a.click(); URL.revokeObjectURL(url)
   }
 
   const handleExport = () => {
@@ -165,6 +216,35 @@ export default function MahasiswaPage() {
 
   const handleGenerateCertificate = (mahasiswaId: string) => {
     window.location.href = `/dashboard/sertifikat?mahasiswa_id=${mahasiswaId}`
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === data.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(data.map(m => m.id)))
+    }
+  }
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) return
+    if (!confirm(`Yakin ingin menghapus ${selectedIds.size} mahasiswa? (hanya yang tidak punya sertifikat)`)) return
+    try {
+      const res = await axios.post(`${API_URL}/mahasiswa/batch-delete`, { ids: Array.from(selectedIds) })
+      toast.success(res.data.message || 'Berhasil')
+      setSelectedIds(new Set())
+      fetchData()
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Gagal menghapus')
+    }
   }
 
   const statusBadge = (status: string) => {
@@ -282,6 +362,44 @@ export default function MahasiswaPage() {
                   <input type="text" value={form.tahun_masuk} onChange={e => setForm({ ...form, tahun_masuk: e.target.value })} required maxLength={4}
                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-blue-400 text-sm" />
                 </div>
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">Tahun Lulus</label>
+                  <input type="text" value={form.tahun_lulus} onChange={e => setForm({ ...form, tahun_lulus: e.target.value })} maxLength={4}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-blue-400 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">IPK</label>
+                  <input type="number" step="0.01" min="0" max="4" value={form.ipk} onChange={e => setForm({ ...form, ipk: e.target.value })}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-blue-400 text-sm" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-gray-300 mb-1">Status</label>
+                  <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-blue-400 text-sm">
+                    <option value="aktif">Aktif</option>
+                    <option value="lulus">Lulus</option>
+                    <option value="dropout">Dropout</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-gray-300 mb-1">Judul Skripsi</label>
+                  <input type="text" value={form.judul_skripsi} onChange={e => setForm({ ...form, judul_skripsi: e.target.value })}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-blue-400 text-sm" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-gray-300 mb-1">Foto Mahasiswa</label>
+                  <input type="file" accept="image/jpeg,image/png" onChange={e => {
+                    const f = e.target.files?.[0]
+                    if (f) { setFotoFile(f); setFotoPreview(URL.createObjectURL(f)) }
+                  }}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-blue-400 text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-600/20 file:text-blue-400 file:text-sm" />
+                  {fotoPreview && (
+                    <div className="mt-2">
+                      <img src={fotoPreview} alt="Preview" className="w-24 h-24 object-cover rounded-lg border border-white/10" />
+                      <button type="button" onClick={() => { setFotoFile(null); setFotoPreview(null) }} className="text-xs text-red-400 mt-1 hover:underline">Hapus foto</button>
+                    </div>
+                  )}
+                </div>
                 {!editId && (
                   <div className="flex items-center gap-2">
                     <input type="checkbox" id="create_user" checked={form.create_user} onChange={e => setForm({ ...form, create_user: e.target.checked })}
@@ -309,23 +427,36 @@ export default function MahasiswaPage() {
           <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="glass-card p-6 w-full max-w-xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold">Import Mahasiswa</h2>
-              <button onClick={() => { setShowImport(false); setImportData('') }} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+              <button onClick={() => { setShowImport(false); setImportData(''); setImportFile(null) }} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
-            <p className="text-sm text-gray-400 mb-4">
-              Masukkan data dengan format: <code className="text-blue-400">NIM, Nama Lengkap, Email, Kode Prodi, Tahun Masuk</code>
-            </p>
-            <p className="text-xs text-gray-500 mb-4">Contoh:<br />
-              <code className="text-gray-400">20200121001, Ahmad Fauzi, ahmad@email.com, TI, 2020<br />20200121002, Siti Nurhaliza, siti@email.com, SI, 2020</code>
-            </p>
+
+            <div className="flex gap-2 mb-4">
+              <button onClick={downloadTemplate} className="px-3 py-1.5 glass rounded-lg text-xs hover:bg-white/10 transition-all flex items-center gap-1.5">
+                <Download className="w-3.5 h-3.5" /> Download Template CSV
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-400 mb-2">Upload file CSV atau tempel data:</p>
+
+            <div className="mb-4">
+              <input type="file" accept=".csv" onChange={e => {
+                const f = e.target.files?.[0]
+                if (f) { setImportFile(f); setImportData('') }
+              }}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-600/20 file:text-blue-400 file:text-sm" />
+              {importFile && <p className="text-xs text-green-400 mt-1">File: {importFile.name}</p>}
+            </div>
+
+            <div className="text-xs text-gray-500 mb-2">Atau tempel teks CSV:</div>
             <textarea
-              value={importData} onChange={e => setImportData(e.target.value)}
-              placeholder="Tempel data di sini..."
-              rows={8}
+              value={importData} onChange={e => { setImportData(e.target.value); setImportFile(null) }}
+              placeholder="NIM,Nama Lengkap,Email,Kode Prodi,Tahun Masuk,Tahun Lulus,IPK,Status,Tempat Lahir,Tanggal Lahir,Jenis Kelamin,No HP"
+              rows={6}
               className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-blue-400 text-sm font-mono"
             />
             <div className="flex gap-2 justify-end mt-4">
-              <button type="button" onClick={() => { setShowImport(false); setImportData('') }} className="px-4 py-2 glass rounded-lg text-sm hover:bg-white/10 transition-all">Batal</button>
-              <button onClick={handleImport} disabled={isSubmitting || !importData.trim()}
+              <button type="button" onClick={() => { setShowImport(false); setImportData(''); setImportFile(null) }} className="px-4 py-2 glass rounded-lg text-sm hover:bg-white/10 transition-all">Batal</button>
+              <button onClick={handleImport} disabled={isSubmitting || (!importData.trim() && !importFile)}
                 className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg text-sm font-medium hover:shadow-lg transition-all disabled:opacity-50 flex items-center gap-2">
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 Import Data
@@ -340,10 +471,24 @@ export default function MahasiswaPage() {
         <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-blue-400" /></div>
       ) : (
         <div className="glass-card overflow-hidden">
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 px-4 py-2 border-b border-white/10 bg-red-500/5">
+              <span className="text-sm text-gray-300">{selectedIds.size} dipilih</span>
+              <button onClick={handleBatchDelete} className="px-3 py-1 bg-red-500/20 text-red-400 rounded-lg text-xs hover:bg-red-500/30 transition-all flex items-center gap-1">
+                <Trash2 className="w-3.5 h-3.5" /> Hapus Terpilih
+              </button>
+              <button onClick={() => setSelectedIds(new Set())} className="text-xs text-gray-400 hover:text-white ml-auto">Batal pilih</button>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/10">
+                  <th className="p-3 w-10">
+                    <input type="checkbox" checked={data.length > 0 && selectedIds.size === data.length}
+                      onChange={toggleSelectAll}
+                      className="rounded bg-white/5 border-white/10 cursor-pointer" />
+                  </th>
                   <th className="text-left p-3 text-sm text-gray-400 font-medium">NIM</th>
                   <th className="text-left p-3 text-sm text-gray-400 font-medium">Nama</th>
                   <th className="text-left p-3 text-sm text-gray-400 font-medium">Prodi</th>
@@ -354,7 +499,11 @@ export default function MahasiswaPage() {
               </thead>
               <tbody>
                 {data.map(m => (
-                  <tr key={m.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                  <tr key={m.id} className={`border-b border-white/5 transition-colors ${selectedIds.has(m.id) ? 'bg-blue-500/5' : 'hover:bg-white/5'}`}>
+                    <td className="p-3">
+                      <input type="checkbox" checked={selectedIds.has(m.id)} onChange={() => toggleSelect(m.id)}
+                        className="rounded bg-white/5 border-white/10 cursor-pointer" />
+                    </td>
                     <td className="p-3 text-sm font-mono">{m.nim}</td>
                     <td className="p-3">
                       <Link href={`/dashboard/mahasiswa/${m.id}`} className="text-sm font-medium hover:text-blue-400 transition-colors">
@@ -391,7 +540,7 @@ export default function MahasiswaPage() {
                   </tr>
                 ))}
                 {data.length === 0 && (
-                  <tr><td colSpan={6} className="p-8 text-center text-gray-400">Tidak ada data mahasiswa</td></tr>
+                  <tr><td colSpan={7} className="p-8 text-center text-gray-400">Tidak ada data mahasiswa</td></tr>
                 )}
               </tbody>
             </table>

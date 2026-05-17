@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🎓 IJAZAH DIGITAL BERBASIS BLOCKCHAIN
 ## Sistem Verifikasi Ijazah Digital
 
@@ -291,3 +292,158 @@ Jika proyek ini membantu, silakan berikan:
 🛠️ Contribution & Feedback
 
 ---
+=======
+# Ijazah Blockchain - Universitas Subang (Sepolia Testnet)
+
+Sistem verifikasi ijazah digital berbasis **Ethereum Sepolia Testnet** untuk Universitas Subang (UNSUB).
+
+## ⚠️ PENTING: TESTNET, BUKAN MAINNET!
+
+- **Network**: Sepolia Testnet (Chain ID: 11155111)
+- **Gas**: SepoliaETH gratis dari faucet
+- **Tidak ada uang sungguhan** yang digunakan
+- Untuk production, deploy ulang ke Ethereum Mainnet
+
+## Teknologi
+
+| Komponen | Teknologi |
+|----------|-----------|
+| Backend | Laravel 13 + PHP 8.3 |
+| Frontend | Next.js 16 + React 19 + TypeScript |
+| Database | MySQL 8.0 |
+| Blockchain | Ethereum Sepolia Testnet |
+| Smart Contract | Solidity ^0.8.19 |
+| Library Blockchain | web3p/web3.php (backend), ethers.js v6 (frontend) |
+| Block Explorer | https://sepolia.etherscan.io |
+
+## Konsep
+
+Sistem ini **bukan** untuk generate ijazah baru, tetapi untuk:
+
+1. **Upload** file PDF ijazah yang sudah ada dari kampus
+2. **Auto-hitung** SHA-256 hash dari file PDF
+3. **Simpan hash** ke smart contract di Sepolia Testnet
+4. **Verifikasi** keaslian dengan mencocokkan hash ke Sepolia
+5. **QR Code** berisi link verifikasi ke Sepolia Etherscan
+
+## Alur Sistem
+
+```
+Upload PDF → Hitung SHA-256 → Store ke Smart Contract (Sepolia) → Storage Lokal
+                              ↓
+                    QR Code → Link Verifikasi
+                              ↓
+                    Publik bisa verifikasi via Hash/File/QR
+```
+
+## Smart Contract
+
+`contracts/IjazahStorage.sol` - Smart contract untuk:
+
+- `storeCertificate()` - Menyimpan hash + metadata ke Sepolia
+- `verifyCertificate()` - Verifikasi dari Sepolia (read-only)
+- `revokeCertificate()` - Mencabut sertifikat di Sepolia
+
+## Persyaratan
+
+- PHP ^8.3
+- Composer
+- Node.js ^18
+- MySQL 8.0+
+- MetaMask (untuk admin upload)
+- SepoliaETH dari faucet (untuk gas)
+
+## Instalasi
+
+### 1. Backend
+
+```bash
+cd backend
+composer install
+cp .env.example .env
+# Edit .env: database, blockchain config
+php artisan key:generate
+php artisan migrate --seed
+php artisan storage:link
+php artisan serve
+```
+
+### 2. Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 3. Deploy Smart Contract ke Sepolia
+
+```bash
+# Install Foundry (https://book.getfoundry.sh)
+forge create --rpc-url https://rpc.sepolia.org \
+  --private-key YOUR_PRIVATE_KEY \
+  contracts/IjazahStorage.sol:IjazahStorage
+```
+
+Update `.env` dengan contract address setelah deploy.
+
+### 4. Dapatkan SepoliaETH (gratis)
+
+- https://sepoliafaucet.com (Alchemy)
+- https://faucet.quicknode.com/ethereum/sepolia
+- https://sepolia-faucet.pk910.de (PoW faucet)
+
+## Akun Demo
+
+| Role | Email | Password |
+|------|-------|----------|
+| Super Admin | admin@unsub.ac.id | admin123 |
+
+## API Endpoints
+
+### Public (Verifikasi via Sepolia)
+- `POST /api/verify/hash` - Verifikasi hash ke smart contract Sepolia
+- `POST /api/verify/file` - Upload PDF, auto-hash, verifikasi ke Sepolia
+- `GET /api/verify/{hash}` - Verifikasi via URL (QR code)
+- `GET /api/verify/stats` - Statistik
+- `GET /api/verify/etherscan/{txHash}` - Redirect ke Sepolia Etherscan
+
+### Admin (Upload ke Sepolia)
+- `POST /api/ijazah/upload` - Upload PDF + simpan hash ke Sepolia
+- `GET /api/ijazah` - List ijazah
+- `GET /api/ijazah/{id}` - Detail + link Sepolia Etherscan
+- `POST /api/ijazah/{id}/revoke` - Revoke di Sepolia
+- `GET /api/ijazah/blockchain/stats` - Statistik Sepolia
+- `GET /api/ijazah/blockchain/balance` - Cek balance SepoliaETH
+
+## Struktur Proyek
+
+```
+ijazah-blockchain-unsub/
+├── contracts/
+│   └── IjazahStorage.sol       # Smart Contract untuk Sepolia
+├── backend/                     # Laravel API
+│   ├── app/
+│   │   ├── Http/Controllers/API/
+│   │   │   ├── IjazahController.php     # Upload & manajemen
+│   │   │   ├── VerificationController.php # Verifikasi via Sepolia
+│   │   │   ├── AuthController.php
+│   │   │   └── ...
+│   │   └── Services/
+│   │       └── BlockchainService.php     # Sepolia integration
+│   └── routes/api.php
+├── frontend/                    # Next.js App
+│   ├── app/
+│   │   ├── dashboard/sertifikat/  # Upload page (MetaMask)
+│   │   ├── verify/                # Verification pages
+│   │   └── ...
+│   └── hooks/
+│       └── useWallet.ts          # MetaMask wallet hook
+└── database/
+    └── schema.sql
+```
+
+## Lisensi
+
+MIT
+>>>>>>> cf740bb (update)

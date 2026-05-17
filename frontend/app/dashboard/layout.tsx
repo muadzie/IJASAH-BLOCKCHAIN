@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import {
   LayoutDashboard, Users, FileText, Shield, Settings, LogOut, Menu, X,
-  GraduationCap, Search, ClipboardCheck, UserCog
+  GraduationCap, Search, ClipboardCheck, UserCog, UserCircle
 } from 'lucide-react'
 import axios from 'axios'
 import toast from 'react-hot-toast'
@@ -26,6 +26,7 @@ const allNavItems: NavItem[] = [
   { href: '/dashboard/sertifikat', label: 'Sertifikat', icon: FileText, roles: ['super_admin', 'admin_akademik'] },
   { href: '/dashboard/verifikasi', label: 'Verifikasi', icon: Shield },
   { href: '/dashboard/riwayat', label: 'Riwayat Verifikasi', icon: ClipboardCheck, roles: ['verifikator', 'super_admin', 'admin_akademik'] },
+  { href: '/dashboard/profile', label: 'Profil', icon: UserCircle },
   { href: '/dashboard/admin', label: 'Admin', icon: Settings, roles: ['super_admin'] },
 ]
 
@@ -48,7 +49,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
     if (storedUser) {
-      try { setUser(JSON.parse(storedUser)) } catch {}
+      try { setUser(JSON.parse(storedUser)); setIsLoading(false) } catch {}
     }
 
     const fetchUser = async () => {

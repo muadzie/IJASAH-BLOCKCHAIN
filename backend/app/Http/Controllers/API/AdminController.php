@@ -127,6 +127,21 @@ class AdminController extends Controller
         ]);
     }
 
+    public function clearCache()
+    {
+        try {
+            Artisan::call('cache:clear');
+            Artisan::call('config:clear');
+            Artisan::call('view:clear');
+            return response()->json([
+                'success' => true,
+                'message' => 'Cache berhasil dibersihkan'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
     public function getActivityLogs(Request $request)
     {
         $query = ActivityLog::with('user')->orderBy('created_at', 'desc');

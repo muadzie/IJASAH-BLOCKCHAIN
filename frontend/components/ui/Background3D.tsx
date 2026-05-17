@@ -35,6 +35,8 @@ export function Background3D() {
       })
     }
 
+    let animationId: number
+
     function animate() {
       if (!canvas || !ctx) return
       ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -57,7 +59,7 @@ export function Background3D() {
         ctx.fill()
       })
 
-      requestAnimationFrame(animate)
+      animationId = requestAnimationFrame(animate)
     }
 
     animate()
@@ -69,7 +71,10 @@ export function Background3D() {
     }
 
     window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    return () => {
+      cancelAnimationFrame(animationId)
+      window.removeEventListener('resize', handleResize)
+    }
   }, [])
 
   return <canvas ref={canvasRef} className="fixed inset-0 -z-10" />

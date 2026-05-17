@@ -44,12 +44,12 @@ class Mahasiswa extends Model
 
     public function getNamaLengkapWithGelarAttribute(): string
     {
-        $gelar = match($this->prodi->jenjang) {
+        $gelar = $this->prodi ? match($this->prodi->jenjang) {
             'S1' => 'S.Kom',
             'S2' => 'M.Kom',
             'D3', 'D4' => 'A.Md.',
             default => ''
-        };
+        } : '';
         return $gelar ? "{$this->nama_lengkap}, {$gelar}" : $this->nama_lengkap;
     }
 }

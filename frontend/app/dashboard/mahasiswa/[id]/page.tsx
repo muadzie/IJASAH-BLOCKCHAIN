@@ -86,9 +86,13 @@ export default function MahasiswaDetailPage() {
       {/* Profile Header */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6">
         <div className="flex items-start gap-5 mb-6">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-3xl font-bold shrink-0">
-            {data.nama_lengkap?.charAt(0)?.toUpperCase()}
-          </div>
+          {data.foto ? (
+            <img src={`${API_URL.replace('/api', '')}/storage/${data.foto}`} alt={data.nama_lengkap} className="w-20 h-20 rounded-full object-cover border-2 border-blue-400/30 shrink-0" />
+          ) : (
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-3xl font-bold shrink-0">
+              {data.nama_lengkap?.charAt(0)?.toUpperCase()}
+            </div>
+          )}
           <div className="flex-1">
             <div className="flex items-start justify-between">
               <div>
